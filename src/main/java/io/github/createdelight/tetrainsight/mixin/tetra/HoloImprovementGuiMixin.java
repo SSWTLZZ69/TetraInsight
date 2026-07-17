@@ -8,6 +8,7 @@ import io.github.createdelight.tetrainsight.client.HoloImprovementChainLevelGui;
 import io.github.createdelight.tetrainsight.client.HoloImprovementGuiExtension;
 import io.github.createdelight.tetrainsight.client.HoloImprovementRequirementSummaryGui;
 import io.github.createdelight.tetrainsight.client.ImprovementChainEntry;
+import io.github.createdelight.tetrainsight.client.ImprovementPreviewContext;
 import io.github.createdelight.tetrainsight.TetraInsight;
 import io.github.createdelight.tetrainsight.integration.tetra.MaterialGlyphTintResolver;
 import io.github.createdelight.tetrainsight.integration.tetra.TetraDataProbe;
@@ -222,6 +223,7 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
     @Inject(method = "updateVariants", at = @At("HEAD"), cancellable = true, remap = false)
     private void tetraInsight$groupEnchantments(OutcomePreview[] previews,
             List<OutcomeStack> selectedOutcomes, CallbackInfo ci) {
+        ImprovementPreviewContext.register(schematic, previews);
         if (!tetraInsight$chainEntries.isEmpty()) {
             tetraInsight$renderImprovementChain(selectedOutcomes);
             ci.cancel();
@@ -360,6 +362,8 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
             List<ImprovementChainEntry> entries, ItemStack itemStack) {
         tetraInsight$chainKey = improvementKey;
         tetraInsight$chainEntries = List.copyOf(entries);
+        entries.forEach(entry -> ImprovementPreviewContext.register(
+                entry.schematic(), new OutcomePreview[] {entry.preview()}));
     }
 
     @Unique

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.3
+
+- Added explicit base-to-selected and selected-to-hovered stat comparison modes for improvement previews.
+- Rebuilt combined improvement previews from the base item so selected improvements contribute to later hover predictions.
+- Applied book enchantments after ordinary improvements and honing, preventing enchantment previews from hiding or discarding other improvement state.
+- Fixed stale improvement, honing and hover state when changing selections or closing the improvement browser.
+- Kept the comparison label in its original stat header position and separated the detail-page back action from third-row stat bars.
+
 ## 0.1.0-alpha.2
 
 - Reworked improvement browsing into a compact overview and a focused detail subpage.

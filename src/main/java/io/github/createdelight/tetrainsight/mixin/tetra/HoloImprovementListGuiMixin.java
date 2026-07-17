@@ -48,6 +48,9 @@ public abstract class HoloImprovementListGuiMixin {
     private static final int tetraInsight$TOOLBAR_GAP = 6;
 
     @Unique
+    private static final int tetraInsight$DETAIL_HEADER_HEIGHT = 14;
+
+    @Unique
     private HoloToggleVisibilityButtonGui tetraInsight$visibilityToggle;
 
     @Unique
@@ -203,6 +206,8 @@ public abstract class HoloImprovementListGuiMixin {
             return;
         }
 
+        container.setY(0);
+
         if (tetraInsight$displayEntriesDirty) {
             tetraInsight$rebuildDisplayEntries();
         }
@@ -335,7 +340,9 @@ public abstract class HoloImprovementListGuiMixin {
         tetraInsight$clearRows();
         tetraInsight$visibilityToggle.setVisible(false);
         tetraInsight$pageControls.setVisible(false);
+        tetraInsight$backButton.setY(0);
         tetraInsight$backButton.setVisible(true);
+        container.setY(tetraInsight$DETAIL_HEADER_HEIGHT);
 
         HoloImprovementGui improvement = tetraInsight$addImprovement(
                 groups[0], tetraInsight$detailEntry.schematic(),

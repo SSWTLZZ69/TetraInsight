@@ -1,6 +1,8 @@
 package io.github.createdelight.tetrainsight.mixin.tetra;
 
 import io.github.createdelight.tetrainsight.client.HoloSortPageControls;
+import io.github.createdelight.tetrainsight.client.HoloStatsComparisonAccess;
+import io.github.createdelight.tetrainsight.client.ImprovementComparisonMode;
 import io.github.createdelight.tetrainsight.client.PaginationWindow;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -12,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.mutil.gui.GuiElement;
+import se.mickelus.mutil.gui.GuiStringOutline;
 import se.mickelus.mutil.gui.animation.Applier;
 import se.mickelus.mutil.gui.animation.KeyframeAnimation;
 import se.mickelus.tetra.gui.stats.bar.GuiStatBase;
@@ -26,7 +29,8 @@ import java.util.List;
  * with the improvement list below it.
  */
 @Mixin(value = HoloStatsGui.class, remap = false)
-public abstract class HoloStatsGuiMixin extends GuiElement {
+public abstract class HoloStatsGuiMixin extends GuiElement
+        implements HoloStatsComparisonAccess {
     @Unique
     private static final int tetraInsight$PAGE_SIZE = 14;
 
@@ -47,6 +51,9 @@ public abstract class HoloStatsGuiMixin extends GuiElement {
     private HoloSortPageControls tetraInsight$pageControls;
 
     @Unique
+    private GuiStringOutline tetraInsight$comparisonLabel;
+
+    @Unique
     private int tetraInsight$currentPage;
 
     @Unique
@@ -65,6 +72,11 @@ public abstract class HoloStatsGuiMixin extends GuiElement {
         tetraInsight$pageControls.setY(tetraInsight$PAGER_Y);
         tetraInsight$pageControls.update(48, 1, 1);
         addChild(tetraInsight$pageControls);
+
+        tetraInsight$comparisonLabel = new GuiStringOutline(0, -10, "");
+        tetraInsight$comparisonLabel.setColor(0x7f7f7f);
+        tetraInsight$comparisonLabel.setVisible(false);
+        addChild(tetraInsight$comparisonLabel);
     }
 
     @Inject(method = "update", at = @At("RETURN"), remap = false)
@@ -133,5 +145,24 @@ public abstract class HoloStatsGuiMixin extends GuiElement {
         } else {
             barGroup.setOpacity(1f);
         }
+    }
+
+    @Override
+    @Unique
+    public void tetraInsight$setComparisonMode(ImprovementComparisonMode mode) {
+        String translation = switch (mode) {
+            case BASE_TO_SELECTED ->
+                    "tetra_insight.holo.improvement.compare.base_selected";
+            case BASE_TO_PREVIEW ->
+                    "tetra_insight.holo.improvement.compare.base_preview";
+            case SELECTED_TO_PREVIEW ->
+                    "tetra_insight.holo.improvement.compare.selected_preview";
+            case NONE -> "";
+        };
+        tetraInsight$comparisonLabel.setString(translation.isEmpty()
+                ? ""
+                : net.minecraft.client.resources.language.I18n.get(translation));
+        tetraInsight$comparisonLabel.setX(0);
+        tetraInsight$comparisonLabel.setVisible(!translation.isEmpty());
     }
 }

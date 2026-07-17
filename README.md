@@ -11,6 +11,7 @@ Tetra Insight is a client-side Forge addon for Minecraft 1.20.1 that makes Tetra
 - Generates display hints from actual Tetra material extracts only when an author did not provide display data.
 - Adds searchable, paginated effect and attribute filtering with an explicit clear action.
 - Adds a compact improvement overview with focused detail pages, pagination and module-specific ownership filtering.
+- Compares the base item, the current selected combination and the hovered improvement without losing existing improvement state.
 - Shows material-based improvements like module material choices, with Shift-held consumable details.
 - Groups enchantment choices and exposes synergy bonuses and module aspects more clearly.
 - Handles large third-party schematic collections and skips unusable material choices.

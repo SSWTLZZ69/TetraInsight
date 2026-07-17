@@ -2,6 +2,8 @@ package io.github.createdelight.tetrainsight.mixin.tetra;
 
 import io.github.createdelight.tetrainsight.client.HoloDisplaySchematicAccess;
 import io.github.createdelight.tetrainsight.client.HoloImprovementGuiExtension;
+import io.github.createdelight.tetrainsight.client.HoloImprovementBackButtonGui;
+import io.github.createdelight.tetrainsight.client.HoloImprovementOverviewEntryGui;
 import io.github.createdelight.tetrainsight.client.HoloSortPageControls;
 import io.github.createdelight.tetrainsight.client.ImprovementDisplayEntry;
 import io.github.createdelight.tetrainsight.client.ImprovementChainEntry;
@@ -17,6 +19,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.mutil.gui.impl.GuiHorizontalLayoutGroup;
 import se.mickelus.mutil.gui.impl.GuiHorizontalScrollable;
 import se.mickelus.mutil.gui.GuiElement;
+import se.mickelus.mutil.gui.animation.Applier;
+import se.mickelus.mutil.gui.animation.KeyframeAnimation;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementListGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloToggleVisibilityButtonGui;
@@ -50,6 +54,9 @@ public abstract class HoloImprovementListGuiMixin {
     private HoloSortPageControls tetraInsight$pageControls;
 
     @Unique
+    private HoloImprovementBackButtonGui tetraInsight$backButton;
+
+    @Unique
     private boolean tetraInsight$showApplicable = true;
 
     @Unique
@@ -69,6 +76,25 @@ public abstract class HoloImprovementListGuiMixin {
 
     @Unique
     private boolean tetraInsight$renderDirty;
+
+    @Unique
+    private List<ImprovementDisplayEntry> tetraInsight$displayEntries = List.of();
+
+    @Unique
+    private boolean tetraInsight$displayEntriesDirty = true;
+
+    @Unique
+    private final List<HoloImprovementOverviewEntryGui> tetraInsight$overviewEntries =
+            new ArrayList<>();
+
+    @Unique
+    private ImprovementDisplayEntry tetraInsight$detailEntry;
+
+    @Unique
+    private KeyframeAnimation tetraInsight$transitionAnimation;
+
+    @Unique
+    private boolean tetraInsight$transitioning;
 
     @Shadow
     @Final
@@ -111,6 +137,9 @@ public abstract class HoloImprovementListGuiMixin {
         tetraInsight$pageControls.setY(-16);
         tetraInsight$updatePageControls(1, 1);
         ((GuiElement) (Object) this).addChild(tetraInsight$pageControls);
+        tetraInsight$backButton = new HoloImprovementBackButtonGui(
+                this::tetraInsight$closeDetail);
+        ((GuiElement) (Object) this).addChild(tetraInsight$backButton);
     }
 
     @Inject(method = "updateSchematics", at = @At("HEAD"), cancellable = true, remap = false)
@@ -119,10 +148,12 @@ public abstract class HoloImprovementListGuiMixin {
         tetraInsight$itemStack = itemStack.copy();
         tetraInsight$slot = slot;
         tetraInsight$allSchematics = Arrays.copyOf(schematics, schematics.length);
+        tetraInsight$detailEntry = null;
         tetraInsight$visibilityToggle.setVisible(
                 Arrays.stream(schematics).anyMatch(UpgradeSchematic::isHoning));
         tetraInsight$currentPage = 0;
         tetraInsight$renderDirty = true;
+        tetraInsight$displayEntriesDirty = true;
         tetraInsight$clearRows();
         tetraInsight$updatePageControls(1, 1);
         if (((GuiElement) (Object) this).isVisible()) {
@@ -148,20 +179,78 @@ public abstract class HoloImprovementListGuiMixin {
     @Inject(method = "updateSelection", at = @At("RETURN"), remap = false)
     private void tetraInsight$relayoutAfterSelection(ItemStack itemStack,
             List<OutcomeStack> selectedOutcomes, CallbackInfo ci) {
+        tetraInsight$overviewEntries.forEach(entry ->
+                entry.updateSelection(tetraInsight$selectedOutcomes));
         tetraInsight$refreshImprovementLayout();
     }
 
     @Unique
     private void tetraInsight$toggleVisibility() {
-        tetraInsight$showApplicable = !tetraInsight$showApplicable;
-        tetraInsight$visibilityToggle.update(tetraInsight$showApplicable);
-        tetraInsight$currentPage = 0;
-        tetraInsight$renderSchematics();
+        tetraInsight$transitionSwap(0, () -> {
+            tetraInsight$showApplicable = !tetraInsight$showApplicable;
+            tetraInsight$visibilityToggle.update(tetraInsight$showApplicable);
+            tetraInsight$currentPage = 0;
+            tetraInsight$displayEntriesDirty = true;
+            tetraInsight$renderSchematics();
+        });
     }
 
     @Unique
     private void tetraInsight$renderSchematics() {
         long started = System.nanoTime();
+        if (tetraInsight$detailEntry != null) {
+            tetraInsight$renderDetail();
+            return;
+        }
+
+        if (tetraInsight$displayEntriesDirty) {
+            tetraInsight$rebuildDisplayEntries();
+        }
+
+        tetraInsight$backButton.setVisible(false);
+        tetraInsight$visibilityToggle.setVisible(
+                Arrays.stream(tetraInsight$allSchematics)
+                        .anyMatch(UpgradeSchematic::isHoning));
+        PaginationWindow window = PaginationWindow.of(
+                tetraInsight$displayEntries.size(), tetraInsight$currentPage,
+                tetraInsight$PAGE_SIZE);
+        tetraInsight$currentPage = window.currentPage();
+        tetraInsight$clearRows();
+        for (int index = window.startIndex(); index < window.endIndex(); index++) {
+            ImprovementDisplayEntry displayEntry = tetraInsight$displayEntries.get(index);
+            GuiHorizontalLayoutGroup targetGroup = tetraInsight$shortestRow();
+            boolean available = displayEntry.isChain()
+                    ? displayEntry.chain().stream().anyMatch(ImprovementChainEntry::available)
+                    : !(displayEntry.schematic() instanceof HoloDisplaySchematicAccess display)
+                            || display.tetraInsight$isAvailable();
+            HoloImprovementOverviewEntryGui overview =
+                    new HoloImprovementOverviewEntryGui(
+                            0, 0, displayEntry, available,
+                            () -> tetraInsight$openDetail(displayEntry));
+            overview.updateSelection(tetraInsight$selectedOutcomes);
+            tetraInsight$overviewEntries.add(overview);
+            targetGroup.addChild(overview);
+            targetGroup.forceLayout();
+        }
+
+        for (GuiHorizontalLayoutGroup group : groups) {
+            group.forceLayout();
+        }
+        container.markDirty();
+        tetraInsight$updatePageControls(
+                tetraInsight$currentPage + 1, window.totalPages());
+        tetraInsight$renderDirty = false;
+        long elapsedMillis = (System.nanoTime() - started) / 1_000_000L;
+        if (elapsedMillis >= 10) {
+            io.github.createdelight.tetrainsight.TetraInsight.LOGGER.info(
+                    "Rendered Tetra improvement page {}/{} in {} ms: groups={}, visible={}",
+                    tetraInsight$currentPage + 1, window.totalPages(), elapsedMillis,
+                    tetraInsight$displayEntries.size(), tetraInsight$overviewEntries.size());
+        }
+    }
+
+    @Unique
+    private void tetraInsight$rebuildDisplayEntries() {
         UpgradeSchematic[] schematics = tetraInsight$showApplicable
                 ? tetraInsight$allSchematics
                 : Arrays.stream(tetraInsight$allSchematics)
@@ -169,12 +258,15 @@ public abstract class HoloImprovementListGuiMixin {
                                 || display.tetraInsight$isAvailable())
                         .toArray(UpgradeSchematic[]::new);
 
+        Map<UpgradeSchematic, OutcomePreview[]> previewsBySchematic = new IdentityHashMap<>();
         Map<UpgradeSchematic, ImprovementChainEntry> entriesBySchematic = new IdentityHashMap<>();
         Map<String, List<ImprovementChainEntry>> entriesByKey = new LinkedHashMap<>();
         for (UpgradeSchematic schematic : schematics) {
             OutcomePreview[] previews = schematic.getPreviews(
                     tetraInsight$itemStack, tetraInsight$slot);
-            if (previews.length != 1 || previews[0].variantKey == null || previews[0].level <= 0) {
+            previewsBySchematic.put(schematic, previews);
+            if (previews.length != 1 || previews[0].variantKey == null
+                    || previews[0].level <= 0) {
                 continue;
             }
 
@@ -199,7 +291,9 @@ public abstract class HoloImprovementListGuiMixin {
         for (UpgradeSchematic schematic : schematics) {
             ImprovementChainEntry entry = entriesBySchematic.get(schematic);
             if (entry == null || !chainKeys.contains(entry.preview().variantKey)) {
-                displayEntries.add(ImprovementDisplayEntry.single(schematic));
+                displayEntries.add(ImprovementDisplayEntry.single(
+                        schematic, previewsBySchematic.getOrDefault(
+                                schematic, new OutcomePreview[0])));
                 continue;
             }
 
@@ -216,87 +310,107 @@ public abstract class HoloImprovementListGuiMixin {
                     .toList();
             displayEntries.add(ImprovementDisplayEntry.chain(improvementKey, chain));
         }
+        tetraInsight$displayEntries = List.copyOf(displayEntries);
+        tetraInsight$displayEntriesDirty = false;
+    }
 
-        PaginationWindow window = PaginationWindow.of(
-                displayEntries.size(), tetraInsight$currentPage, tetraInsight$PAGE_SIZE);
-        tetraInsight$currentPage = window.currentPage();
+    @Unique
+    private void tetraInsight$openDetail(ImprovementDisplayEntry entry) {
+        tetraInsight$transitionSwap(1, () -> {
+            tetraInsight$detailEntry = entry;
+            tetraInsight$renderSchematics();
+        });
+    }
+
+    @Unique
+    private void tetraInsight$closeDetail() {
+        tetraInsight$transitionSwap(-1, () -> {
+            tetraInsight$detailEntry = null;
+            tetraInsight$renderSchematics();
+        });
+    }
+
+    @Unique
+    private void tetraInsight$renderDetail() {
         tetraInsight$clearRows();
-        for (int index = window.startIndex(); index < window.endIndex(); index++) {
-            ImprovementDisplayEntry displayEntry = displayEntries.get(index);
-            GuiHorizontalLayoutGroup targetGroup = tetraInsight$shortestRow();
-            HoloImprovementGui improvement = tetraInsight$addImprovement(
-                    targetGroup, displayEntry.schematic(),
-                    tetraInsight$itemStack, tetraInsight$slot);
-            if (displayEntry.isChain()) {
-                ((HoloImprovementGuiExtension) improvement).tetraInsight$setImprovementChain(
-                        displayEntry.improvementKey(), displayEntry.chain(),
-                        tetraInsight$itemStack);
-            }
-            improvement.updateSelection(
-                    tetraInsight$itemStack, tetraInsight$selectedOutcomes);
-        }
+        tetraInsight$visibilityToggle.setVisible(false);
+        tetraInsight$pageControls.setVisible(false);
+        tetraInsight$backButton.setVisible(true);
 
-        tetraInsight$refreshImprovementLayout();
-        tetraInsight$updatePageControls(
-                tetraInsight$currentPage + 1, window.totalPages());
-        tetraInsight$renderDirty = false;
-        long elapsedMillis = (System.nanoTime() - started) / 1_000_000L;
-        if (elapsedMillis >= 10) {
-            io.github.createdelight.tetrainsight.TetraInsight.LOGGER.info(
-                    "Rendered Tetra improvement page {}/{} in {} ms: groups={}, visible={}",
-                    tetraInsight$currentPage + 1, window.totalPages(), elapsedMillis,
-                    displayEntries.size(), improvements.size());
+        HoloImprovementGui improvement = tetraInsight$addImprovement(
+                groups[0], tetraInsight$detailEntry.schematic(),
+                tetraInsight$itemStack, tetraInsight$slot);
+        if (tetraInsight$detailEntry.isChain()) {
+            ((HoloImprovementGuiExtension) improvement).tetraInsight$setImprovementChain(
+                    tetraInsight$detailEntry.improvementKey(),
+                    tetraInsight$detailEntry.chain(), tetraInsight$itemStack);
         }
+        improvement.updateSelection(tetraInsight$itemStack, tetraInsight$selectedOutcomes);
+        tetraInsight$refreshImprovementLayout();
+        tetraInsight$renderDirty = false;
     }
 
     @Unique
     private boolean tetraInsight$changePage(int delta) {
-        UpgradeSchematic[] schematics = tetraInsight$showApplicable
-                ? tetraInsight$allSchematics
-                : Arrays.stream(tetraInsight$allSchematics)
-                        .filter(schematic -> !(schematic instanceof HoloDisplaySchematicAccess display)
-                                || display.tetraInsight$isAvailable())
-                        .toArray(UpgradeSchematic[]::new);
-        int displayCount = tetraInsight$countDisplayEntries(schematics);
         int nextPage = PaginationWindow.of(
-                displayCount, tetraInsight$currentPage + delta,
+                tetraInsight$displayEntries.size(), tetraInsight$currentPage + delta,
                 tetraInsight$PAGE_SIZE).currentPage();
         if (nextPage == tetraInsight$currentPage) {
             return false;
         }
-        tetraInsight$currentPage = nextPage;
-        tetraInsight$renderSchematics();
+        int direction = Integer.compare(nextPage, tetraInsight$currentPage);
+        tetraInsight$transitionSwap(direction, () -> {
+            tetraInsight$currentPage = nextPage;
+            tetraInsight$renderSchematics();
+        });
         return true;
     }
 
     @Unique
-    private int tetraInsight$countDisplayEntries(UpgradeSchematic[] schematics) {
-        Set<String> chainKeys = new HashSet<>();
-        Map<String, Integer> countsByKey = new LinkedHashMap<>();
-        int ordinary = 0;
-        for (UpgradeSchematic schematic : schematics) {
-            OutcomePreview[] previews = schematic.getPreviews(
-                    tetraInsight$itemStack, tetraInsight$slot);
-            if (previews.length != 1 || previews[0].variantKey == null
-                    || previews[0].level <= 0) {
-                ordinary++;
-                continue;
-            }
-            String key = previews[0].variantKey;
-            countsByKey.merge(key, 1, Integer::sum);
-            if (schematic.isHoning()) {
-                chainKeys.add(key);
-            }
+    private void tetraInsight$transitionSwap(int direction, Runnable swap) {
+        if (tetraInsight$transitioning) {
+            return;
         }
-        int grouped = countsByKey.entrySet().stream()
-                .mapToInt(entry -> chainKeys.contains(entry.getKey()) ? 1 : entry.getValue())
-                .sum();
-        return ordinary + grouped;
+        tetraInsight$transitioning = true;
+        tetraInsight$resetContainerTransform();
+
+        int exitOffset = direction == 0 ? 0 : -direction * 2;
+        tetraInsight$transitionAnimation = new KeyframeAnimation(45, container)
+                .applyTo(
+                        new Applier.Opacity(1f, 0f),
+                        new Applier.TranslateX(0f, exitOffset))
+                .onStop(completed -> {
+                    if (!completed) {
+                        tetraInsight$transitioning = false;
+                        tetraInsight$resetContainerTransform();
+                        return;
+                    }
+
+                    swap.run();
+                    int enterOffset = direction == 0 ? 0 : direction * 2;
+                    tetraInsight$transitionAnimation = new KeyframeAnimation(65, container)
+                            .applyTo(
+                                    new Applier.Opacity(0f, 1f),
+                                    new Applier.TranslateX(enterOffset, 0f))
+                            .onStop(entered -> {
+                                tetraInsight$transitioning = false;
+                                tetraInsight$resetContainerTransform();
+                            });
+                    tetraInsight$transitionAnimation.start();
+                });
+        tetraInsight$transitionAnimation.start();
+    }
+
+    @Unique
+    private void tetraInsight$resetContainerTransform() {
+        container.setX(0);
+        container.setOpacity(1f);
     }
 
     @Unique
     private void tetraInsight$clearRows() {
         improvements.clear();
+        tetraInsight$overviewEntries.clear();
         for (GuiHorizontalLayoutGroup group : groups) {
             group.clearChildren();
             group.setWidth(0);

@@ -59,6 +59,9 @@ Reuse Tetra/mutil GUI components, textures, spacing, colors, hover/selected/disa
 ## IMPROVEMENT UI
 - Persistent discovery controls in `HoloSchematicGui` must forward Tetra's existing `onVariantOpen` flow instead of opening a parallel improvement screen.
 - Capture the improvement count already computed by `HoloVariantDetailGui.updateVariant`; do not rescan `SchematicRegistry` just to update discovery labels.
+- Keep improvement discovery as a compact overview. Open one selected schematic in a detail subpage before rendering its levels, materials, consumables, tool requirements, and experience cost.
+- Reuse Tetra/mutil keyframe animations, but keep dense-page transitions subtle: short fades and at most two pixels of horizontal movement; do not stagger large rows of content.
+- Paginate dynamic stat collections before they exceed their native three-row bounds. `HoloStatsGui` uses 14 bars per page with the final grid cell reserved for controls; `WorkbenchStatsGui` uses 18 bars per page. Both support arrow buttons and mouse-wheel paging.
 
 ## COMMANDS
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0
+
+- Detect non-honing improvement chains from explicit same-key improvement prerequisites, while leaving parallel level-scaled schematics such as Quick Latch separate.
+- Group material and fixed-consumable chain levels in one detail page with chain-wide mutual exclusion and material-aware selection visuals.
+- Hide material-backed improvement levels that resolve to no actual item, and show schematic names in chain-level tooltips while retaining compact roman-numeral buttons.
+- Avoid recomputing improvement previews from stale or empty stacks when switching views, preventing `AirItem` cast crashes.
+- Keep the development layout probe diagnostic when toolbar measurements change instead of terminating the client.
+
 ## 0.1.0-alpha.3
 
 - Added explicit base-to-selected and selected-to-hovered stat comparison modes for improvement previews.

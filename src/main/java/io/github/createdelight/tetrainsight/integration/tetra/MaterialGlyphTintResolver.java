@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
+import se.mickelus.tetra.module.schematic.UpgradeSchematic;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -17,7 +18,7 @@ public final class MaterialGlyphTintResolver {
 
     public static Optional<MaterialGlyphTintSnapshot> resolve(
             String schematicKey, OutcomePreview preview) {
-        if (preview.materials == null || preview.materials.length == 0) {
+        if (!hasUsableMaterials(preview)) {
             return Optional.empty();
         }
 
@@ -29,6 +30,31 @@ public final class MaterialGlyphTintResolver {
                         matchScore(left, preview), matchScore(right, preview)))
                 .map(candidate -> new MaterialGlyphTintSnapshot(
                         candidate.materialKey(), candidate.glyphTint()));
+    }
+
+    public static boolean hasUsableMaterials(OutcomePreview preview) {
+        return preview != null
+                && preview.materials != null
+                && Arrays.stream(preview.materials)
+                        .anyMatch(stack -> stack != null && !stack.isEmpty());
+    }
+
+    public static boolean requiresUsableMaterial(UpgradeSchematic schematic) {
+        return schematic.getNumMaterialSlots() > 0
+                && TetraDataProbe.findFixedConsumableSchematic(
+                        schematic.getKey()).isEmpty();
+    }
+
+    public static boolean shouldDisplay(
+            UpgradeSchematic schematic, OutcomePreview preview) {
+        if (!requiresUsableMaterial(schematic)) {
+            return true;
+        }
+        if (!hasUsableMaterials(preview)) {
+            return false;
+        }
+        return TetraDataProbe.findSchematic(schematic.getKey()).isEmpty()
+                || resolve(schematic.getKey(), preview).isPresent();
     }
 
     private static boolean matchesAnySource(MaterialCandidateSnapshot candidate, ItemStack[] materials) {
@@ -60,6 +86,9 @@ public final class MaterialGlyphTintResolver {
     }
 
     private static boolean matches(MaterialItemSource source, ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
         ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(stack.getItem());
         if (itemId == null || !source.itemId().equals(itemId.toString())) {
             return false;

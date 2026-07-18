@@ -118,9 +118,6 @@ public abstract class HoloVariantDetailGuiMixin
         tetraInsight$selectedHoning.clear();
         hoveredImprovement = null;
         ImprovementPreviewContext.clear();
-        improvements.updateSelection(
-                variantOutcome != null ? variantOutcome.itemStack : ItemStack.EMPTY,
-                List.of());
         ((HoloStatsComparisonAccess) stats).tetraInsight$setComparisonMode(
                 ImprovementComparisonMode.NONE);
     }
@@ -371,6 +368,22 @@ public abstract class HoloVariantDetailGuiMixin
             OutcomeStack left, OutcomeStack right) {
         OutcomeStackAccessor leftAccess = (OutcomeStackAccessor) left;
         OutcomeStackAccessor rightAccess = (OutcomeStackAccessor) right;
+        if (left instanceof HoloHoningOutcomeStack leftChain
+                && right instanceof HoloHoningOutcomeStack rightChain
+                && !leftChain.chainKey().isBlank()
+                && leftChain.chainKey().equals(rightChain.chainKey())) {
+            return true;
+        }
+        if (left instanceof HoloHoningOutcomeStack leftChain
+                && leftChain.chainKey().equals(
+                        rightAccess.tetraInsight$getPreview().variantKey)) {
+            return true;
+        }
+        if (right instanceof HoloHoningOutcomeStack rightChain
+                && rightChain.chainKey().equals(
+                        leftAccess.tetraInsight$getPreview().variantKey)) {
+            return true;
+        }
         return leftAccess.tetraInsight$getSchematic().getKey().equals(
                         rightAccess.tetraInsight$getSchematic().getKey())
                 && java.util.Objects.equals(
@@ -471,6 +484,35 @@ public abstract class HoloVariantDetailGuiMixin
                 ordinary.putIfAbsent(schematic.getKey(), schematic);
             }
         }
+
+        Set<String> ordinaryImprovementKeys = new HashSet<>();
+        ordinary.values().forEach(schematic -> tetraInsight$collectImprovementKeys(
+                previewsBySchematic.get(schematic), ordinaryImprovementKeys));
+        boolean addedLinkedImprovement;
+        do {
+            addedLinkedImprovement = false;
+            for (UpgradeSchematic schematic : relevantCandidates) {
+                if (schematic.isHoning()
+                        || schematic.getType() != SchematicType.improvement
+                        || ordinary.containsKey(schematic.getKey())
+                        || !moduleOwnershipBySchematic.computeIfAbsent(
+                                schematic, value -> tetraInsight$matchesModuleOwnership(
+                                        value, candidateContext))) {
+                    continue;
+                }
+                Set<String> dependencies = new HashSet<>();
+                tetraInsight$collectStructuralRequirements(
+                        tetraInsight$getRequirement(schematic), candidateContext,
+                        false, dependencies, new boolean[2]);
+                if (dependencies.stream().noneMatch(ordinaryImprovementKeys::contains)) {
+                    continue;
+                }
+                ordinary.put(schematic.getKey(), schematic);
+                tetraInsight$collectImprovementKeys(
+                        previewsBySchematic.get(schematic), ordinaryImprovementKeys);
+                addedLinkedImprovement = true;
+            }
+        } while (addedLinkedImprovement);
 
         for (UpgradeSchematic schematic : tetraInsight$selectHoningCandidates(
                 relevantCandidates, previewsBySchematic, actualContext)) {

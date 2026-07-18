@@ -12,11 +12,18 @@ import se.mickelus.tetra.module.schematic.UpgradeSchematic;
 public final class HoloHoningOutcomeStack extends OutcomeStack {
     private final UpgradeSchematic schematic;
     private final OutcomePreview preview;
+    private final String chainKey;
 
     public HoloHoningOutcomeStack(UpgradeSchematic schematic, OutcomePreview preview) {
+        this(schematic, preview, preview.variantKey);
+    }
+
+    public HoloHoningOutcomeStack(UpgradeSchematic schematic, OutcomePreview preview,
+            String chainKey) {
         super(schematic, preview);
         this.schematic = schematic;
         this.preview = preview;
+        this.chainKey = chainKey == null ? "" : chainKey;
     }
 
     public UpgradeSchematic schematic() {
@@ -25,5 +32,9 @@ public final class HoloHoningOutcomeStack extends OutcomeStack {
 
     public OutcomePreview preview() {
         return preview;
+    }
+
+    public String chainKey() {
+        return chainKey;
     }
 }

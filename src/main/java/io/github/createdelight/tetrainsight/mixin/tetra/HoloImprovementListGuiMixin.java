@@ -8,6 +8,7 @@ import io.github.createdelight.tetrainsight.client.HoloSortPageControls;
 import io.github.createdelight.tetrainsight.client.ImprovementDisplayEntry;
 import io.github.createdelight.tetrainsight.client.ImprovementChainEntry;
 import io.github.createdelight.tetrainsight.client.PaginationWindow;
+import io.github.createdelight.tetrainsight.integration.tetra.MaterialGlyphTintResolver;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,8 +26,14 @@ import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementListGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloToggleVisibilityButtonGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.OutcomeStack;
+import se.mickelus.tetra.module.schematic.ConfigSchematic;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 import se.mickelus.tetra.module.schematic.UpgradeSchematic;
+import se.mickelus.tetra.module.schematic.requirement.AndRequirement;
+import se.mickelus.tetra.module.schematic.requirement.CraftingRequirement;
+import se.mickelus.tetra.module.schematic.requirement.HasImprovementRequirement;
+import se.mickelus.tetra.module.schematic.requirement.NotRequirement;
+import se.mickelus.tetra.module.schematic.requirement.OrRequirement;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -264,45 +271,74 @@ public abstract class HoloImprovementListGuiMixin {
                         .toArray(UpgradeSchematic[]::new);
 
         Map<UpgradeSchematic, OutcomePreview[]> previewsBySchematic = new IdentityHashMap<>();
-        Map<UpgradeSchematic, ImprovementChainEntry> entriesBySchematic = new IdentityHashMap<>();
+        Map<UpgradeSchematic, List<ImprovementChainEntry>> entriesBySchematic =
+                new IdentityHashMap<>();
         Map<String, List<ImprovementChainEntry>> entriesByKey = new LinkedHashMap<>();
         for (UpgradeSchematic schematic : schematics) {
-            OutcomePreview[] previews = schematic.getPreviews(
-                    tetraInsight$itemStack, tetraInsight$slot);
+            OutcomePreview[] previews = Arrays.stream(schematic.getPreviews(
+                            tetraInsight$itemStack, tetraInsight$slot))
+                    .filter(preview -> MaterialGlyphTintResolver.shouldDisplay(
+                            schematic, preview))
+                    .toArray(OutcomePreview[]::new);
             previewsBySchematic.put(schematic, previews);
-            if (previews.length != 1 || previews[0].variantKey == null
-                    || previews[0].level <= 0) {
-                continue;
-            }
-
             boolean available = !(schematic instanceof HoloDisplaySchematicAccess display)
                     || display.tetraInsight$isAvailable();
-            ImprovementChainEntry entry = new ImprovementChainEntry(
-                    schematic, previews[0], available);
-            entriesBySchematic.put(schematic, entry);
-            entriesByKey.computeIfAbsent(previews[0].variantKey, ignored -> new ArrayList<>())
-                    .add(entry);
+            for (OutcomePreview preview : previews) {
+                if (preview.variantKey == null || preview.level <= 0) {
+                    continue;
+                }
+                ImprovementChainEntry entry = new ImprovementChainEntry(
+                        schematic, preview, available);
+                entriesBySchematic.computeIfAbsent(
+                                schematic, ignored -> new ArrayList<>())
+                        .add(entry);
+                entriesByKey.computeIfAbsent(
+                                preview.variantKey, ignored -> new ArrayList<>())
+                        .add(entry);
+            }
         }
 
         Set<String> chainKeys = new HashSet<>();
         entriesByKey.forEach((key, entries) -> {
-            if (entries.stream().anyMatch(entry -> entry.schematic().isHoning())) {
+            long levels = entries.stream()
+                    .mapToInt(entry -> entry.preview().level)
+                    .distinct()
+                    .count();
+            boolean honingChain = entries.stream()
+                    .anyMatch(entry -> entry.schematic().isHoning());
+            boolean dependencyChain = entries.stream()
+                    .map(ImprovementChainEntry::schematic)
+                    .distinct()
+                    .anyMatch(schematic -> tetraInsight$dependsOnImprovement(
+                            schematic, key));
+            if (levels > 1 && (honingChain || dependencyChain)) {
                 chainKeys.add(key);
             }
         });
 
+        Map<UpgradeSchematic, String> chainKeyBySchematic = new IdentityHashMap<>();
+        entriesBySchematic.forEach((schematic, entries) -> entries.stream()
+                .map(entry -> entry.preview().variantKey)
+                .filter(chainKeys::contains)
+                .findFirst()
+                .ifPresent(key -> chainKeyBySchematic.put(schematic, key)));
+
         Set<String> renderedChains = new HashSet<>();
         List<ImprovementDisplayEntry> displayEntries = new ArrayList<>();
         for (UpgradeSchematic schematic : schematics) {
-            ImprovementChainEntry entry = entriesBySchematic.get(schematic);
-            if (entry == null || !chainKeys.contains(entry.preview().variantKey)) {
+            OutcomePreview[] schematicPreviews = previewsBySchematic.getOrDefault(
+                    schematic, new OutcomePreview[0]);
+            if (schematicPreviews.length == 0
+                    && MaterialGlyphTintResolver.requiresUsableMaterial(schematic)) {
+                continue;
+            }
+            String improvementKey = chainKeyBySchematic.get(schematic);
+            if (improvementKey == null) {
                 displayEntries.add(ImprovementDisplayEntry.single(
-                        schematic, previewsBySchematic.getOrDefault(
-                                schematic, new OutcomePreview[0])));
+                        schematic, schematicPreviews));
                 continue;
             }
 
-            String improvementKey = entry.preview().variantKey;
             if (!renderedChains.add(improvementKey)) {
                 continue;
             }
@@ -317,6 +353,52 @@ public abstract class HoloImprovementListGuiMixin {
         }
         tetraInsight$displayEntries = List.copyOf(displayEntries);
         tetraInsight$displayEntriesDirty = false;
+    }
+
+    @Unique
+    private static boolean tetraInsight$dependsOnImprovement(
+            UpgradeSchematic schematic, String improvementKey) {
+        UpgradeSchematic delegate = schematic instanceof HoloDisplaySchematicAccess display
+                ? display.tetraInsight$delegate()
+                : schematic;
+        if (!(delegate instanceof ConfigSchematic)) {
+            return false;
+        }
+        CraftingRequirement requirement = ((ConfigSchematicAccessor) delegate)
+                .tetraInsight$getDefinition().requirement;
+        return tetraInsight$containsPositiveImprovementRequirement(
+                requirement, improvementKey, false);
+    }
+
+    @Unique
+    private static boolean tetraInsight$containsPositiveImprovementRequirement(
+            CraftingRequirement requirement, String improvementKey, boolean negated) {
+        if (requirement == null) {
+            return false;
+        }
+        if (requirement instanceof NotRequirement) {
+            return tetraInsight$containsPositiveImprovementRequirement(
+                    ((NotRequirementAccessor) requirement).tetraInsight$getRequirement(),
+                    improvementKey, !negated);
+        }
+        if (requirement instanceof AndRequirement) {
+            return Arrays.stream(((AndRequirementAccessor) requirement)
+                            .tetraInsight$getRequirements())
+                    .anyMatch(child -> tetraInsight$containsPositiveImprovementRequirement(
+                            child, improvementKey, negated));
+        }
+        if (requirement instanceof OrRequirement) {
+            return Arrays.stream(((OrRequirementAccessor) requirement)
+                            .tetraInsight$getRequirements())
+                    .anyMatch(child -> tetraInsight$containsPositiveImprovementRequirement(
+                            child, improvementKey, negated));
+        }
+        return !negated
+                && requirement instanceof HasImprovementRequirement
+                && java.util.Objects.equals(
+                        ((HasImprovementRequirementAccessor) requirement)
+                                .tetraInsight$getImprovement(),
+                        improvementKey);
     }
 
     @Unique

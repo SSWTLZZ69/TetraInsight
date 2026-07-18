@@ -163,16 +163,17 @@ public final class HoloImprovementOverviewEntryGui extends GuiClickable {
     }
 
     private String tetraInsight$typeTranslation() {
-        if (entry.isChain() || entry.schematic().isHoning()) {
+        if (entry.schematic().isHoning()
+                || entry.chain().stream()
+                        .anyMatch(chainEntry -> chainEntry.schematic().isHoning())) {
             return "tetra_insight.holo.improvement.type.honing";
         }
         if (Objects.equals(entry.schematic().getKey(), "book_enchant")) {
             return "tetra_insight.holo.improvement.type.enchantment";
         }
-        if (entry.previews().length > 0
-                && java.util.Arrays.stream(entry.previews())
-                        .anyMatch(preview -> preview.materials != null
-                                && preview.materials.length > 0)) {
+        if (java.util.Arrays.stream(entry.previews())
+                .anyMatch(preview -> preview.materials != null
+                        && preview.materials.length > 0)) {
             return "tetra_insight.holo.improvement.type.material";
         }
         return "tetra_insight.holo.improvement.type.improvement";

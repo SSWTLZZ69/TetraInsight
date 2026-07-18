@@ -5,6 +5,8 @@ import io.github.createdelight.tetrainsight.integration.tetra.MaterialGlyphTintR
 import io.github.createdelight.tetrainsight.integration.tetra.model.MaterialGlyphTintSnapshot;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import se.mickelus.mutil.gui.GuiItem;
 import se.mickelus.mutil.gui.GuiTexture;
@@ -20,6 +22,9 @@ import se.mickelus.tetra.module.data.ImprovementData;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 
 import java.util.function.Consumer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,11 +33,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * retaining the improvement variant's native click and hover callbacks.
  */
 public class HoloMaterialImprovementVariantGui extends HoloImprovementVariantGui {
+    private static final int tetraInsight$SELECTED_COLOR = 0x8f8fcf;
     private static final Set<String> tetraInsight$loggedMaterialGlyphs = ConcurrentHashMap.newKeySet();
 
     private final GuiTexture tetraInsight$backdrop;
     private final GuiItemRolling tetraInsight$material;
+    private Component tetraInsight$tooltipTitle;
     private boolean tetraInsight$muted;
+    private boolean tetraInsight$selected;
 
     public HoloMaterialImprovementVariantGui(int x, int y, String label, int labelStart,
             String schematicKey, String slot,
@@ -56,7 +64,11 @@ public class HoloMaterialImprovementVariantGui extends HoloImprovementVariantGui
 
         tetraInsight$material = new GuiItemRolling(-1, -1)
                 .setCountVisibility(GuiItem.CountMode.never)
-                .setItems(preview.materials);
+                .setItems(preview.materials == null
+                        ? new ItemStack[0]
+                        : Arrays.stream(preview.materials)
+                                .filter(stack -> stack != null && !stack.isEmpty())
+                                .toArray(ItemStack[]::new));
     }
 
     private static GlyphData tetraInsight$resolveMaterialGlyph(
@@ -123,13 +135,50 @@ public class HoloMaterialImprovementVariantGui extends HoloImprovementVariantGui
     @Override
     protected void onBlur() {
         super.onBlur();
-        tetraInsight$backdrop.setColor(tetraInsight$muted ? 0x7f7f7f : 0xffffff);
+        tetraInsight$applyBackdropColor();
     }
 
     @Override
     public void setMuted(boolean muted) {
         super.setMuted(muted);
         tetraInsight$muted = muted;
-        tetraInsight$backdrop.setColor(muted ? 0x7f7f7f : 0xffffff);
+        tetraInsight$selected = false;
+        tetraInsight$applyBackdropColor();
+    }
+
+    public void tetraInsight$setSelectionState(
+            boolean groupActive, boolean selected, boolean available) {
+        tetraInsight$muted = !available || (groupActive && !selected);
+        tetraInsight$selected = selected;
+        super.setMuted(tetraInsight$muted);
+        tetraInsight$applyBackdropColor();
+    }
+
+    public void tetraInsight$setTooltipTitle(String title, int tint) {
+        tetraInsight$tooltipTitle = Component.literal(title)
+                .withStyle(style -> style.withColor(tint));
+    }
+
+    @Override
+    public List<Component> getTooltipLines() {
+        List<Component> original = super.getTooltipLines();
+        if (tetraInsight$tooltipTitle == null) {
+            return original;
+        }
+        List<Component> tooltip = original == null
+                ? new ArrayList<>()
+                : new ArrayList<>(original);
+        if (tooltip.isEmpty()) {
+            tooltip.add(tetraInsight$tooltipTitle);
+        } else {
+            tooltip.set(0, tetraInsight$tooltipTitle);
+        }
+        return tooltip;
+    }
+
+    private void tetraInsight$applyBackdropColor() {
+        tetraInsight$backdrop.setColor(
+                tetraInsight$selected ? tetraInsight$SELECTED_COLOR
+                        : tetraInsight$muted ? 0x7f7f7f : 0xffffff);
     }
 }

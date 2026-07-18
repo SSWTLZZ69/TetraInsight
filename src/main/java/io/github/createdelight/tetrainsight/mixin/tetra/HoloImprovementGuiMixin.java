@@ -14,6 +14,7 @@ import io.github.createdelight.tetrainsight.integration.tetra.MaterialGlyphTintR
 import io.github.createdelight.tetrainsight.integration.tetra.TetraDataProbe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.ChatFormatting;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -38,7 +39,6 @@ import se.mickelus.tetra.items.modular.impl.holo.gui.craft.OutcomeStack;
 import se.mickelus.tetra.items.modular.IModularItem;
 import se.mickelus.tetra.module.schematic.ConfigSchematic;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
-import se.mickelus.tetra.module.schematic.SchematicRarity;
 import se.mickelus.tetra.module.schematic.UpgradeSchematic;
 
 import java.util.ArrayList;
@@ -197,20 +197,13 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
             remap = false)
     private OutcomePreview[] tetraInsight$removeUnresolvedMaterialVariants(
             OutcomePreview[] previews) {
-        int requiredMaterials = schematic.getNumMaterialSlots();
-        if (requiredMaterials <= 0 || !(schematic instanceof ConfigSchematic)) {
-            return previews;
-        }
-
-        boolean materialSchematic = TetraDataProbe.findSchematic(schematic.getKey()).isPresent();
-        if (!materialSchematic
-                && TetraDataProbe.findFixedConsumableSchematic(schematic.getKey()).isPresent()) {
+        if (!(schematic instanceof ConfigSchematic)
+                || !MaterialGlyphTintResolver.requiresUsableMaterial(schematic)) {
             return previews;
         }
         OutcomePreview[] resolved = java.util.Arrays.stream(previews)
-                .filter(preview -> materialSchematic
-                        ? MaterialGlyphTintResolver.resolve(schematic.getKey(), preview).isPresent()
-                        : false)
+                .filter(preview -> MaterialGlyphTintResolver.shouldDisplay(
+                        schematic, preview))
                 .toArray(OutcomePreview[]::new);
         if (resolved.length != previews.length) {
             TetraInsight.LOGGER.debug(
@@ -361,8 +354,11 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
     public void tetraInsight$setImprovementChain(String improvementKey,
             List<ImprovementChainEntry> entries, ItemStack itemStack) {
         tetraInsight$chainKey = improvementKey;
-        tetraInsight$chainEntries = List.copyOf(entries);
-        entries.forEach(entry -> ImprovementPreviewContext.register(
+        tetraInsight$chainEntries = entries.stream()
+                .filter(entry -> MaterialGlyphTintResolver.shouldDisplay(
+                        entry.schematic(), entry.preview()))
+                .toList();
+        tetraInsight$chainEntries.forEach(entry -> ImprovementPreviewContext.register(
                 entry.schematic(), new OutcomePreview[] {entry.preview()}));
     }
 
@@ -374,7 +370,7 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
                 tetraInsight$chainEntries.stream()
                         .anyMatch(entry -> selected.schematicEquals(entry.schematic())));
 
-        label.setString(IModularItem.getImprovementName(tetraInsight$chainKey, 0));
+        label.setString(tetraInsight$getChainName());
         header.forceLayout();
 
         int cursor = 0;
@@ -383,19 +379,48 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
             boolean selected = selectedOutcomes.stream().anyMatch(stack ->
                     stack.schematicEquals(entry.schematic())
                             && stack.previewEquals(entry.preview()));
-            int tint = entry.schematic().isHoning()
-                    ? SchematicRarity.hone.tint
-                    : SchematicRarity.basic.tint;
-            HoloImprovementChainLevelGui levelButton = new HoloImprovementChainLevelGui(
-                    cursor, 0, tetraInsight$formatLevel(entry.preview().level),
-                    entry.preview(), index + 1 < tetraInsight$chainEntries.size(),
-                    onVariantHover, onVariantBlur,
-                    outcome -> onVariantSelect.accept(
-                            new HoloHoningOutcomeStack(entry.schematic(), outcome)),
-                    tint, entry.available(), tetraInsight$buildChainTooltip(entry, tint));
-            levelButton.tetraInsight$setSelectionState(isActive, selected);
-            variants.addChild(levelButton);
-            cursor += tetraInsight$getLayoutWidth(levelButton)
+            int tint = entry.schematic().getRarity().tint;
+            boolean nextInSeries = index + 1 < tetraInsight$chainEntries.size();
+            Consumer<OutcomePreview> onSelect = outcome -> onVariantSelect.accept(
+                    new HoloHoningOutcomeStack(
+                            entry.schematic(), outcome, tetraInsight$chainKey));
+            HoloImprovementVariantGui variant;
+            if (TetraDataProbe.findSchematic(entry.schematic().getKey()).isPresent()) {
+                HoloMaterialImprovementVariantGui materialVariant =
+                        new HoloMaterialImprovementVariantGui(
+                                cursor, 0, tetraInsight$formatLevel(entry.preview().level), 0,
+                                entry.schematic().getKey(), slot, entry.preview(), nextInSeries,
+                                onVariantHover, onVariantBlur, onSelect);
+                materialVariant.tetraInsight$setSelectionState(
+                        isActive, selected, entry.available());
+                materialVariant.tetraInsight$setTooltipTitle(
+                        entry.schematic().getName(), tint);
+                variant = materialVariant;
+            } else if (entry.preview().materials != null
+                    && entry.preview().materials.length > 0) {
+                HoloConsumableImprovementVariantGui consumableVariant =
+                        new HoloConsumableImprovementVariantGui(
+                                cursor, 0, tetraInsight$formatLevel(entry.preview().level), 0,
+                                entry.preview(), nextInSeries,
+                                onVariantHover, onVariantBlur, onSelect);
+                consumableVariant.tetraInsight$setSelectionState(
+                        isActive, selected, entry.available());
+                consumableVariant.tetraInsight$setTooltipTitle(
+                        entry.schematic().getName(), tint);
+                variant = consumableVariant;
+            } else {
+                HoloImprovementChainLevelGui levelVariant =
+                        new HoloImprovementChainLevelGui(
+                                cursor, 0, tetraInsight$formatLevel(entry.preview().level),
+                                entry.preview(), nextInSeries,
+                                onVariantHover, onVariantBlur, onSelect,
+                                tint, entry.available(),
+                                tetraInsight$buildChainTooltip(entry, tint));
+                levelVariant.tetraInsight$setSelectionState(isActive, selected);
+                variant = levelVariant;
+            }
+            variants.addChild(variant);
+            cursor += tetraInsight$getLayoutWidth(variant)
                     + tetraInsight$LEVEL_GAP;
         }
 
@@ -423,6 +448,18 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
             }
         }
         return tooltip;
+    }
+
+    @Unique
+    private String tetraInsight$getChainName() {
+        String translationKey = "tetra.improvement."
+                + tetraInsight$chainKey + ".name";
+        if (Language.getInstance().has(translationKey)) {
+            return IModularItem.getImprovementName(tetraInsight$chainKey, 0);
+        }
+        return tetraInsight$chainEntries.isEmpty()
+                ? tetraInsight$chainKey
+                : tetraInsight$chainEntries.get(0).schematic().getName();
     }
 
     @Unique

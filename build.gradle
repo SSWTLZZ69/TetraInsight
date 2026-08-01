@@ -56,6 +56,7 @@ dependencies {
 
     implementation fg.deobf('curse.maven:mutil-351914:6418901')
     implementation fg.deobf('curse.maven:tetra-289712:6418957')
+    compileOnly fg.deobf('curse.maven:extra-holo-page-1301292:8203632')
 
     if (file('run/runtime-libs/minecraft-mcp-1.20.1-forge-v0.2.1.jar').exists()) {
         runtimeOnly fg.deobf('local:minecraft-mcp-1.20.1-forge:v0.2.1')

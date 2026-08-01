@@ -26,16 +26,16 @@ class PaginationWindowTest {
 
     @Test
     void coversImprovementPageBoundary() {
-        PaginationWindow first = PaginationWindow.of(56, 0, 12);
-        assertEquals(5, first.totalPages());
+        PaginationWindow first = PaginationWindow.of(56, 0, 9);
+        assertEquals(7, first.totalPages());
         assertEquals(0, first.startIndex());
-        assertEquals(12, first.endIndex());
+        assertEquals(9, first.endIndex());
 
-        PaginationWindow last = PaginationWindow.of(56, 4, 12);
-        assertEquals(5, last.totalPages());
-        assertEquals(48, last.startIndex());
+        PaginationWindow last = PaginationWindow.of(56, 6, 9);
+        assertEquals(7, last.totalPages());
+        assertEquals(54, last.startIndex());
         assertEquals(56, last.endIndex());
-        assertEquals(8, last.visibleCount());
+        assertEquals(2, last.visibleCount());
     }
 
     @Test

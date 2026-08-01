@@ -2,6 +2,8 @@
 
 ## 0.1.0
 
+- Collapse schematic material categories larger than eight entries behind a category-level expand control, while keeping the selected material visible.
+- Reduce improvement overview pages to nine entries so a full page uses a compact 3x3 layout.
 - Detect non-honing improvement chains from explicit same-key improvement prerequisites, while leaving parallel level-scaled schematics such as Quick Latch separate.
 - Group material and fixed-consumable chain levels in one detail page with chain-wide mutual exclusion and material-aware selection visuals.
 - Hide material-backed improvement levels that resolve to no actual item, and show schematic names in chain-level tooltips while retaining compact roman-numeral buttons.

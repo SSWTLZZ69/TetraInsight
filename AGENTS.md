@@ -30,8 +30,12 @@ Tetra Insight is a client-side Minecraft 1.20.1 Forge addon for Tetra interface 
 
 Reuse Tetra/mutil GUI components, textures, spacing, colors, hover/selected/disabled states, and sounds wherever possible. New pagination, search, clipping, and expandable controls should be thin adaptations that retain Tetra's visual language, not a replacement theme.
 
+- Workbench shortcuts that target the holosphere's pre-schematic module list must enter `HoloCraftRootGui.onSlotSelect`; passing a null schematic to `HoloGui.openSchematic` reaches `HoloSchematicGui.update` and crashes.
+
 ## MATERIAL VISIBILITY
 
+- Collapse both global `HoloMaterialListGui` and schematic `HoloVariantListGui` categories above eight entries to seven visible entries plus a Tetra-styled expand control in the eighth native slot; show a clear title-adjacent collapse control after expansion, pin an out-of-window selection, and allow only one expanded category at a time.
+- ExtraHoloPage 1.2.16 discards constructed Tetra `Holo*GroupGui` objects and adds `MyHolo*GroupGui` replacements. Keep native group mixins plus `@Pseudo` replacement mixins, make list mixins discover final children through fold interfaces instead of Tetra concrete classes, and stop only a relocated selected entry's animation before reapplying its compact slot.
 - `MaterialData.hidden` only hides a material from Tetra's global material browser. Keep it in schematic-scoped candidate enumeration and expose `hiddenInGlobalMaterialBrowser` in the display model.
 - `MaterialData.hiddenOutcomes` prevents material outcomes and is the visibility flag that excludes a material from schematic-scoped candidates.
 - When duplicate logical materials merge, mark the result globally hidden only if every merged definition is globally hidden.
@@ -57,6 +61,7 @@ Reuse Tetra/mutil GUI components, textures, spacing, colors, hover/selected/disa
 - Sorter cancellation must remain visible regardless of the search query. Present a localized clear action backed by `StatSorters.none`, pin it in filtered results, and reset the transient search query after any sorter selection so reopening never traps the user in a filtered subset.
 
 ## IMPROVEMENT UI
+- Paginate the improvement overview at nine entries per page; the three native layout groups distribute a full page as a compact 3x3 grid.
 - Persistent discovery controls in `HoloSchematicGui` must forward Tetra's existing `onVariantOpen` flow instead of opening a parallel improvement screen.
 - Capture the improvement count already computed by `HoloVariantDetailGui.updateVariant`; do not rescan `SchematicRegistry` just to update discovery labels.
 - Keep improvement discovery as a compact overview. Open one selected schematic in a detail subpage before rendering its levels, materials, consumables, tool requirements, and experience cost.

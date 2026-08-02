@@ -47,63 +47,53 @@ function Fill-Poly([string]$Hex, [int[][]]$Coordinates) {
     }
 }
 
-# Original 32x32 pixel-art emblem: modular steel frame, copper clamps and
-# a cyan holographic inspection lens. All coordinates are integer pixels.
-Fill-Poly '#15191f' @(
-    @(10, 2), @(22, 2), @(22, 4), @(26, 4), @(26, 7), @(29, 7),
-    @(29, 24), @(26, 24), @(26, 28), @(22, 28), @(22, 30), @(10, 30),
-    @(10, 28), @(6, 28), @(6, 24), @(3, 24), @(3, 7), @(6, 7),
-    @(6, 4), @(10, 4))
-Fill-Poly '#303944' @(
-    @(10, 4), @(22, 4), @(22, 6), @(25, 6), @(25, 9), @(27, 9),
-    @(27, 22), @(24, 22), @(24, 26), @(21, 26), @(21, 28), @(11, 28),
-    @(11, 26), @(8, 26), @(8, 22), @(5, 22), @(5, 9), @(8, 9),
-    @(8, 6), @(10, 6))
+# Original 32x32 pixel-art emblem: a Tetra-family diamond plate containing
+# a monochrome inspection iris. All coordinates are integer pixels.
 
-# Steel plates and hard pixel highlights.
-Fill-Rect '#596674' 10 5 12 2
-Fill-Rect '#7c8b98' 12 5 8 1
-Fill-Rect '#596674' 6 10 2 11
-Fill-Rect '#7c8b98' 6 11 1 7
-Fill-Rect '#596674' 24 10 2 11
-Fill-Rect '#3b4651' 25 12 1 7
-Fill-Rect '#596674' 10 25 12 2
-Fill-Rect '#7c8b98' 12 25 7 1
+# Deep silhouette. The palette deliberately mirrors Tetra-family addon marks:
+# pure black, pure white and one neutral 50% gray.
+Fill-Poly '#000000' @(@(16, 0), @(32, 16), @(16, 32), @(0, 16))
 
-# Copper modular clamps.
-Fill-Rect '#7c3f24' 8 3 4 4
-Fill-Rect '#c26c35' 9 3 2 3
-Fill-Rect '#7c3f24' 20 3 4 4
-Fill-Rect '#c26c35' 21 3 2 3
-Fill-Rect '#7c3f24' 3 9 4 5
-Fill-Rect '#c26c35' 4 10 2 3
-Fill-Rect '#7c3f24' 25 9 4 5
-Fill-Rect '#c26c35' 26 10 2 3
-Fill-Rect '#7c3f24' 3 18 4 5
-Fill-Rect '#c26c35' 4 19 2 3
-Fill-Rect '#7c3f24' 25 18 4 5
-Fill-Rect '#c26c35' 26 19 2 3
-Fill-Rect '#7c3f24' 8 25 4 4
-Fill-Rect '#c26c35' 9 26 2 2
-Fill-Rect '#7c3f24' 20 25 4 4
-Fill-Rect '#c26c35' 21 26 2 2
+# Thin segmented schematic rim. White describes the lit upper facets while
+# gray is reserved for the lower shadow; the plate itself remains black.
+Fill-Poly '#ffffff' @(@(16, 1), @(31, 16), @(29, 18), @(14, 3))
+Fill-Poly '#ffffff' @(@(1, 16), @(16, 1), @(18, 3), @(3, 18))
+Fill-Poly '#808080' @(@(31, 16), @(16, 31), @(14, 29), @(29, 14))
+Fill-Poly '#808080' @(@(16, 31), @(1, 16), @(3, 14), @(18, 29))
+Fill-Poly '#000000' @(@(16, 4), @(28, 16), @(16, 28), @(4, 16))
 
-# Holographic lens: stepped diamond with discrete highlights only.
-Fill-Poly '#0b2831' @(@(16, 6), @(25, 15), @(16, 25), @(7, 15))
-Fill-Poly '#0d6070' @(@(16, 8), @(23, 15), @(16, 23), @(9, 15))
-Fill-Poly '#13a8b7' @(@(16, 10), @(21, 15), @(16, 21), @(11, 15))
-Fill-Poly '#5be5e8' @(@(16, 11), @(20, 15), @(16, 19), @(12, 15))
-Fill-Rect '#d7ffff' 14 12 4 2
-Fill-Rect '#86ffff' 13 14 6 3
-Fill-Rect '#29cbd2' 15 17 3 2
-Fill-Rect '#0d5663' 11 16 2 2
-Fill-Rect '#0d5663' 19 13 2 2
+# Four Tetra-like connector tabs and their single-pixel signal lamps.
+Fill-Rect '#000000' 14 0 4 4
+Fill-Rect '#ffffff' 15 1 2 2
+Fill-Rect '#000000' 28 14 4 4
+Fill-Rect '#ffffff' 29 15 2 2
+Fill-Rect '#000000' 14 28 4 4
+Fill-Rect '#808080' 15 29 2 2
+Fill-Rect '#000000' 0 14 4 4
+Fill-Rect '#ffffff' 1 15 2 2
 
-# Three material-analysis indicators.
-Fill-Rect '#11151a' 12 27 8 2
-Fill-Rect '#38d5db' 13 27 2 1
-Fill-Rect '#e5a43b' 15 27 2 1
-Fill-Rect '#6dc56a' 17 27 2 1
+# White line-art inspection eye on the black plate.
+Fill-Poly '#ffffff' @(
+    @(6, 16), @(10, 12), @(15, 10), @(17, 10), @(22, 12), @(26, 16),
+    @(22, 20), @(17, 22), @(15, 22), @(10, 20))
+Fill-Poly '#000000' @(
+    @(9, 16), @(12, 14), @(16, 12), @(20, 14), @(23, 16),
+    @(20, 18), @(16, 20), @(12, 18))
+
+# Faceted lens, pupil and glint.
+Fill-Poly '#808080' @(@(16, 12), @(20, 16), @(16, 20), @(12, 16))
+Fill-Poly '#ffffff' @(@(16, 13), @(19, 16), @(16, 19), @(13, 16))
+Fill-Rect '#000000' 15 15 3 3
+Fill-Rect '#ffffff' 16 15 1 1
+
+# Compact analysis notches and the three grayscale material channels.
+Fill-Rect '#808080' 16 9 1 2
+Fill-Rect '#808080' 16 21 1 2
+Fill-Rect '#808080' 6 16 2 1
+Fill-Rect '#808080' 24 16 2 1
+Fill-Rect '#ffffff' 12 23 2 1
+Fill-Rect '#808080' 15 23 2 1
+Fill-Rect '#000000' 18 23 2 1
 
 $graphics.Dispose()
 

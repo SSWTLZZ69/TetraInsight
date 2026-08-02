@@ -54,9 +54,16 @@
   "tetra_insight.holo.material_impact.provenance.inferred": "预览推测",
   "tetra_insight.holo.material_impact.provenance.none": "不换算",
   "tetra_insight.holo.material_impact.provenance.unavailable": "不可用",
+  "tetra_insight.holo.material_group.expand": "展开此分类的全部 %s 种材料",
+  "tetra_insight.holo.material_group.more": "显示另外 %s 个选项",
+  "tetra_insight.holo.material_group.collapse": "收起此分类",
+  "tetra_insight.holo.material_group.collapse_short": "[-] 收起",
   "tetra_insight.workbench.module_metadata.synergy": "协同>",
   "tetra_insight.workbench.module_metadata.aspects": "特性>",
   "tetra_insight.workbench.module_metadata.synergy_title": "协同加成",
   "tetra_insight.workbench.module_metadata.aspects_title": "模块特性",
-  "tetra_insight.workbench.module_metadata.click": "点击展开完整信息"
+  "tetra_insight.workbench.module_metadata.click": "点击展开完整信息",
+  "tetra_insight.workbench.schematic_list_holo.button": "在全息球中查看",
+  "tetra_insight.workbench.schematic_list_holo.open": "打开此槽位在全息球中的模块列表",
+  "tetra_insight.workbench.schematic_list_holo.unavailable": "附近或物品栏中没有可用的全息球"
 }

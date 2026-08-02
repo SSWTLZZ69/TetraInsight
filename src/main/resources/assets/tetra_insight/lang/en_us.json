@@ -54,9 +54,16 @@
   "tetra_insight.holo.material_impact.provenance.inferred": "Preview estimate",
   "tetra_insight.holo.material_impact.provenance.none": "No scaling",
   "tetra_insight.holo.material_impact.provenance.unavailable": "Unavailable",
+  "tetra_insight.holo.material_group.expand": "Show all %s materials in this category",
+  "tetra_insight.holo.material_group.more": "Show %s more options",
+  "tetra_insight.holo.material_group.collapse": "Collapse this category",
+  "tetra_insight.holo.material_group.collapse_short": "[-] Collapse",
   "tetra_insight.workbench.module_metadata.synergy": "Syn >",
   "tetra_insight.workbench.module_metadata.aspects": "Traits>",
   "tetra_insight.workbench.module_metadata.synergy_title": "Synergy bonuses",
   "tetra_insight.workbench.module_metadata.aspects_title": "Module traits",
-  "tetra_insight.workbench.module_metadata.click": "Click to open the full details"
+  "tetra_insight.workbench.module_metadata.click": "Click to open the full details",
+  "tetra_insight.workbench.schematic_list_holo.button": "View in holosphere",
+  "tetra_insight.workbench.schematic_list_holo.open": "Open this slot's module list in the holosphere",
+  "tetra_insight.workbench.schematic_list_holo.unavailable": "No usable holosphere was found nearby or in your inventory"
 }

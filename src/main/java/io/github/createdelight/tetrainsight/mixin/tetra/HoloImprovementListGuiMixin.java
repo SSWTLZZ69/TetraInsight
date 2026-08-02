@@ -49,7 +49,7 @@ import java.util.function.Consumer;
 @Mixin(value = HoloImprovementListGui.class, remap = false)
 public abstract class HoloImprovementListGuiMixin {
     @Unique
-    private static final int tetraInsight$PAGE_SIZE = 12;
+    private static final int tetraInsight$PAGE_SIZE = 9;
 
     @Unique
     private static final int tetraInsight$TOOLBAR_GAP = 6;

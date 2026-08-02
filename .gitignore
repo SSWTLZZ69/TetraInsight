@@ -2,6 +2,7 @@
 /build/
 /run/
 /run-data/
+/tmp/
 /.idea/
 /*.iml
 /out/

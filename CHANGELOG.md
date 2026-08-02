@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0
+## 0.1.1
 
 - Collapse schematic material categories larger than eight entries behind a category-level expand control, while keeping the selected material visible.
 - Reduce improvement overview pages to nine entries so a full page uses a compact 3x3 layout.

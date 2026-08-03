@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Add compact material identity, tendency and intrinsic-data summaries to matching item tooltips.
+- Open a hovered material directly in the holosphere with the configurable material-dossier key.
+- Add Tetra-styled material and compatible-schematic dossier pages to the global material browser.
+
+## 0.1.2
+
+- Initialize the native holosphere screen lifecycle when opening an empty workbench slot through the shortcut.
+- Let the craft root animate from its computed navigation depth, preventing the item-level module overview from rendering as a black page.
+
 ## 0.1.1
 
 - Collapse schematic material categories larger than eight entries behind a category-level expand control, while keeping the selected material visible.

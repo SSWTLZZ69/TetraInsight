@@ -6,6 +6,7 @@ import io.github.createdelight.tetrainsight.client.HoloHoningTargetAccess;
 import io.github.createdelight.tetrainsight.client.HoloMaterialImpactButtonGui;
 import io.github.createdelight.tetrainsight.client.HoloMaterialImpactPanelGui;
 import io.github.createdelight.tetrainsight.client.HoloSchematicImprovementEntryAccess;
+import io.github.createdelight.tetrainsight.client.HoloSchematicVariantNavigationAccess;
 import io.github.createdelight.tetrainsight.client.HoloSortMaterialScalingAccess;
 import io.github.createdelight.tetrainsight.integration.tetra.TetraDataProbe;
 import io.github.createdelight.tetrainsight.integration.tetra.model.TranslationProvenance;
@@ -34,7 +35,8 @@ import java.util.function.Consumer;
 
 @Mixin(value = HoloSchematicGui.class, remap = false)
 public abstract class HoloSchematicGuiMixin
-        implements HoloSchematicImprovementEntryAccess, HoloHoningTargetAccess {
+        implements HoloSchematicImprovementEntryAccess, HoloHoningTargetAccess,
+        HoloSchematicVariantNavigationAccess {
     @Shadow
     @Final
     private Consumer<OutcomePreview> onVariantOpen;
@@ -57,6 +59,10 @@ public abstract class HoloSchematicGuiMixin
 
     @Shadow
     private OutcomePreview selectedVariant;
+
+    @Shadow
+    private void onVariantSelect(OutcomePreview preview) {
+    }
 
     @Unique
     private HoloImprovementButton tetraInsight$improvementEntry;
@@ -176,6 +182,12 @@ public abstract class HoloSchematicGuiMixin
     @Override
     public void tetraInsight$setHoningTarget(ItemStack targetStack) {
         ((HoloHoningTargetAccess) detail).tetraInsight$setHoningTarget(targetStack);
+    }
+
+    @Override
+    public void tetraInsight$openVariantImprovements(OutcomePreview preview) {
+        onVariantSelect(preview);
+        onVariantOpen.accept(preview);
     }
 
     @Unique

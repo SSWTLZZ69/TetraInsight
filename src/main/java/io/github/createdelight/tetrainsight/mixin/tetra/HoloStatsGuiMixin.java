@@ -2,6 +2,7 @@ package io.github.createdelight.tetrainsight.mixin.tetra;
 
 import io.github.createdelight.tetrainsight.client.HoloSortPageControls;
 import io.github.createdelight.tetrainsight.client.HoloStatsComparisonAccess;
+import io.github.createdelight.tetrainsight.client.HoloStatsLayoutAccess;
 import io.github.createdelight.tetrainsight.client.ImprovementComparisonMode;
 import io.github.createdelight.tetrainsight.client.PaginationWindow;
 import net.minecraft.world.entity.player.Player;
@@ -24,21 +25,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Keeps Tetra's five-column stat layout, but reserves the final cell of the
- * third row for page controls. This prevents a fourth stat row from colliding
- * with the improvement list below it.
+ * Keeps Tetra's stat layout, but reserves the final cell of the third row for
+ * page controls. Individual screens can request a roomier grid without
+ * changing every native Tetra stats panel.
  */
 @Mixin(value = HoloStatsGui.class, remap = false)
 public abstract class HoloStatsGuiMixin extends GuiElement
-        implements HoloStatsComparisonAccess {
-    @Unique
-    private static final int tetraInsight$PAGE_SIZE = 14;
-
-    @Unique
-    private static final int tetraInsight$PAGER_X = 272;
+        implements HoloStatsComparisonAccess, HoloStatsLayoutAccess {
 
     @Unique
     private static final int tetraInsight$PAGER_Y = 36;
+
+    @Unique
+    private int tetraInsight$columns = 5;
+
+    @Unique
+    private int tetraInsight$columnSpacing = 68;
 
     @Shadow
     @Final
@@ -68,7 +70,7 @@ public abstract class HoloStatsGuiMixin extends GuiElement
         tetraInsight$pageControls = new HoloSortPageControls(
                 () -> tetraInsight$changePage(-1),
                 () -> tetraInsight$changePage(1));
-        tetraInsight$pageControls.setX(tetraInsight$PAGER_X);
+        tetraInsight$pageControls.setX(tetraInsight$pagerX());
         tetraInsight$pageControls.setY(tetraInsight$PAGER_Y);
         tetraInsight$pageControls.update(48, 1, 1);
         addChild(tetraInsight$pageControls);
@@ -105,7 +107,7 @@ public abstract class HoloStatsGuiMixin extends GuiElement
     private boolean tetraInsight$changePage(int delta) {
         int nextPage = PaginationWindow.of(
                 tetraInsight$allBars.size(), tetraInsight$currentPage + delta,
-                tetraInsight$PAGE_SIZE).currentPage();
+                tetraInsight$pageSize()).currentPage();
         if (nextPage == tetraInsight$currentPage) {
             return false;
         }
@@ -118,21 +120,21 @@ public abstract class HoloStatsGuiMixin extends GuiElement
     private void tetraInsight$applyPage(boolean animate) {
         PaginationWindow window = PaginationWindow.of(
                 tetraInsight$allBars.size(), tetraInsight$currentPage,
-                tetraInsight$PAGE_SIZE);
+                tetraInsight$pageSize());
         tetraInsight$currentPage = window.currentPage();
 
         barGroup.clearChildren();
         for (int index = window.startIndex(); index < window.endIndex(); index++) {
             GuiStatBase bar = tetraInsight$allBars.get(index);
             int localIndex = index - window.startIndex();
-            bar.setX(localIndex % 5 * 68);
-            bar.setY(localIndex / 5 * 17);
+            bar.setX(localIndex % tetraInsight$columns * tetraInsight$columnSpacing);
+            bar.setY(localIndex / tetraInsight$columns * 17);
             barGroup.addChild(bar);
         }
 
         tetraInsight$pageControls.update(
                 48, tetraInsight$currentPage + 1, window.totalPages());
-        tetraInsight$pageControls.setX(tetraInsight$PAGER_X);
+        tetraInsight$pageControls.setX(tetraInsight$pagerX());
         tetraInsight$pageControls.setY(tetraInsight$PAGER_Y);
 
         if (animate) {
@@ -145,6 +147,25 @@ public abstract class HoloStatsGuiMixin extends GuiElement
         } else {
             barGroup.setOpacity(1f);
         }
+    }
+
+    @Override
+    @Unique
+    public void tetraInsight$setGridLayout(int columns, int columnSpacing) {
+        tetraInsight$columns = Math.max(1, columns);
+        tetraInsight$columnSpacing = Math.max(1, columnSpacing);
+        tetraInsight$currentPage = 0;
+        tetraInsight$applyPage(false);
+    }
+
+    @Unique
+    private int tetraInsight$pageSize() {
+        return tetraInsight$columns * 3 - 1;
+    }
+
+    @Unique
+    private int tetraInsight$pagerX() {
+        return (tetraInsight$columns - 1) * tetraInsight$columnSpacing;
     }
 
     @Override

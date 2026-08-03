@@ -30,15 +30,21 @@ Tetra Insight is a client-side Minecraft 1.20.1 Forge addon for Tetra interface 
 
 Reuse Tetra/mutil GUI components, textures, spacing, colors, hover/selected/disabled states, and sounds wherever possible. New pagination, search, clipping, and expandable controls should be thin adaptations that retain Tetra's visual language, not a replacement theme.
 
-- Workbench shortcuts that target the holosphere's pre-schematic module list must enter `HoloCraftRootGui.onSlotSelect`; passing a null schematic to `HoloGui.openSchematic` reaches `HoloSchematicGui.update` and crashes.
+- Keep custom material-dossier chrome and text in a neutral black, white, and gray hierarchy. Do not add cyan, gold, or other category colors; retain color only where it comes from a reused native Tetra glyph or stat bar.
+- Use stable upstream holosphere category translations for material-usage tree roots: Tetra provides `tetra.holo.craft.modular_*`, and GeoTetraArmor provides `tetra.holo.craft.head/chest/legs/feet`. Do not use `IModularItem.getItemName` as a category label because it dynamically describes the assembled stack.
+- Workbench shortcuts that target the holosphere's pre-schematic module list must enter `HoloCraftRootGui.onSlotSelect`; passing a null schematic to `HoloGui.openSchematic` reaches `HoloSchematicGui.update` and crashes. After setting the screen and navigation state, call `HoloGui.onShow()` and let the craft root animate from its computed depth instead of opening individual child animations.
 
 ## MATERIAL VISIBILITY
 
+- Item-to-material shortcuts must never hide ambiguity: when an item matches multiple definitions, open an explicit paged definition session instead of silently committing to one result.
+- Treat each H shortcut as a fresh material session captured at keypress. Because `HoloGui` is a reused singleton, reset the dossier/modal, clear `HoloMaterialListGui.hoveredItem` and stale focus before selecting that material, and cancel pending auto-open state when the dossier or screen closes.
 - Collapse both global `HoloMaterialListGui` and schematic `HoloVariantListGui` categories above eight entries to seven visible entries plus a Tetra-styled expand control in the eighth native slot; show a clear title-adjacent collapse control after expansion, pin an out-of-window selection, and allow only one expanded category at a time.
 - ExtraHoloPage 1.2.16 discards constructed Tetra `Holo*GroupGui` objects and adds `MyHolo*GroupGui` replacements. Keep native group mixins plus `@Pseudo` replacement mixins, make list mixins discover final children through fold interfaces instead of Tetra concrete classes, and stop only a relocated selected entry's animation before reapplying its compact slot.
 - `MaterialData.hidden` only hides a material from Tetra's global material browser. Keep it in schematic-scoped candidate enumeration and expose `hiddenInGlobalMaterialBrowser` in the display model.
 - `MaterialData.hiddenOutcomes` prevents material outcomes and is the visibility flag that excludes a material from schematic-scoped candidates.
 - When duplicate logical materials merge, mark the result globally hidden only if every merged definition is globally hidden.
+- Treat a non-`MaterialOutcomeDefinition` outcome with a valid material predicate as a special ingredient use. Match it against the exact item stack captured by the H shortcut, retain that stack while paging ambiguous material definitions, and display those uses separately from ordinary material attributes, usage counts, and compatibility statistics.
+- For dossier stat previews, pass the before/after modular stacks to native `HoloStatsGui`. Resolve the outcome through `MaterialGlyphTintResolver` and require the exact `materialKey`; matching only the ingredient item is ambiguous when one item has multiple material definitions.
 
 ## DISPLAY TRANSLATION
 
@@ -69,7 +75,7 @@ Reuse Tetra/mutil GUI components, textures, spacing, colors, hover/selected/disa
 - Treat `HoloDisplaySchematic` previews as UI snapshots only. Selection recomposition and hover prediction must unwrap delegates, rebuild the full combination from the base stack, and apply book enchantments last; cached or enchant-first previews can discard later improvement state.
 - When hiding or switching improvement views, clear transient UI state without calling `updateSelection` or `getPreviews` on a stale or empty stack; Tetra applies improvement outcomes by casting the stack item to `IModularItem`, so an `AirItem` recomputation crashes.
 - Reuse Tetra/mutil keyframe animations, but keep dense-page transitions subtle: short fades and at most two pixels of horizontal movement; do not stagger large rows of content.
-- Paginate dynamic stat collections before they exceed their native three-row bounds. `HoloStatsGui` uses 14 bars per page with the final grid cell reserved for controls; `WorkbenchStatsGui` uses 18 bars per page. Both support arrow buttons and mouse-wheel paging.
+- Paginate dynamic stat collections before they exceed their native three-row bounds. Native `HoloStatsGui` uses five columns and 14 bars per page with the final grid cell reserved for controls; the full-screen material dossier uses a roomier four-column, 11-bar override. `WorkbenchStatsGui` uses 18 bars per page. All support arrow buttons and mouse-wheel paging.
 
 ## COMMANDS
 
@@ -89,6 +95,7 @@ Runtime probe commands:
 ## VERIFICATION
 
 - Build before reporting implementation progress.
+- After switching branches with uncommitted feature work, verify both new classes and their tracked event/mixin entrypoints; untracked classes can survive while tracked hooks revert, leaving a buildable but unreachable partial feature.
 - For data capture changes, enter a development world and check `run/logs/latest.log` for all three capture counts.
 - Resource reloads must replace snapshots rather than append duplicates.
 - Existing author `translation` data always takes precedence over generated display data.

@@ -148,5 +148,6 @@ public abstract class GuiSchematicListMixin implements WorkbenchEmptySchematicHo
                         () -> Minecraft.getInstance().setScreen(previousScreen)
                 )
         );
+        holoGui.onShow();
     }
 }

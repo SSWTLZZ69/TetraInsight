@@ -9,7 +9,11 @@ public final class TetraInsightClient {
 
     public static void init() {
         MinecraftForge.EVENT_BUS.addListener(TetraInsightClientCommands::register);
+        MinecraftForge.EVENT_BUS.addListener(MaterialTooltipHandler::onTooltip);
+        MinecraftForge.EVENT_BUS.addListener(MaterialDossierShortcut::onKeyPressed);
         MinecraftForge.EVENT_BUS.addListener(PaginationRuntimeProbe::onClientTick);
+        FMLJavaModLoadingContext.get().getModEventBus()
+                .addListener(MaterialDossierShortcut::registerKeyMapping);
         FMLJavaModLoadingContext.get().getModEventBus().addListener(PaginationRuntimeProbe::onClientSetup);
     }
 }

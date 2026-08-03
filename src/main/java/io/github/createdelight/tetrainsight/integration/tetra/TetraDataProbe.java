@@ -10,7 +10,9 @@ import io.github.createdelight.tetrainsight.integration.tetra.model.MaterialTran
 import io.github.createdelight.tetrainsight.integration.tetra.model.TetraProbeSnapshot;
 import io.github.createdelight.tetrainsight.integration.tetra.model.TranslationProvenance;
 import io.github.createdelight.tetrainsight.mixin.tetra.OutcomeMaterialAccessor;
+import net.minecraft.advancements.critereon.ItemPredicate;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import se.mickelus.tetra.module.data.MaterialImprovementData;
 import se.mickelus.tetra.module.data.MaterialVariantData;
 import se.mickelus.tetra.module.schematic.MaterialOutcomeDefinition;
@@ -34,12 +36,14 @@ public final class TetraDataProbe {
     private static final List<MaterialDefinitionSnapshot> variantBuilder = new ArrayList<>();
     private static final List<MaterialSchematicSnapshot> schematicBuilder = new ArrayList<>();
     private static final List<FixedConsumableSchematicSnapshot> fixedConsumableBuilder = new ArrayList<>();
+    private static final List<SpecialMaterialMatcher> specialMaterialBuilder = new ArrayList<>();
     private static final Map<String, String> schematicAliasBuilder = new LinkedHashMap<>();
 
     private static List<MaterialDefinitionSnapshot> materialImprovements = List.of();
     private static List<MaterialDefinitionSnapshot> materialVariants = List.of();
     private static List<MaterialSchematicSnapshot> materialSchematics = List.of();
     private static List<FixedConsumableSchematicSnapshot> fixedConsumableSchematics = List.of();
+    private static List<SpecialMaterialMatcher> specialMaterialMatchers = List.of();
     private static Map<String, MaterialSchematicSnapshot> materialSchematicsByKey = Map.of();
     private static Map<String, FixedConsumableSchematicSnapshot> fixedConsumablesByKey = Map.of();
 
@@ -98,6 +102,7 @@ public final class TetraDataProbe {
         synchronized (LOCK) {
             schematicBuilder.clear();
             fixedConsumableBuilder.clear();
+            specialMaterialBuilder.clear();
             schematicAliasBuilder.clear();
         }
     }
@@ -156,6 +161,7 @@ public final class TetraDataProbe {
     public static void finishSchematicReload() {
         synchronized (LOCK) {
             fixedConsumableSchematics = List.copyOf(fixedConsumableBuilder);
+            specialMaterialMatchers = List.copyOf(specialMaterialBuilder);
             List<MaterialSchematicSnapshot> capturedSchematics = List.copyOf(schematicBuilder);
             TetraProbeSnapshot capturedSnapshot = new TetraProbeSnapshot(
                     materialImprovements, materialVariants, capturedSchematics);
@@ -176,6 +182,7 @@ public final class TetraDataProbe {
                 }
             });
             materialSchematicsByKey = Map.copyOf(materialIndex);
+            MaterialInsightIndex.rebuild(materialSchematics);
             LinkedHashMap<String, FixedConsumableSchematicSnapshot> fixedIndex = new LinkedHashMap<>();
             for (FixedConsumableSchematicSnapshot snapshot : fixedConsumableSchematics) {
                 fixedIndex.putIfAbsent(snapshot.schematicKey(), snapshot);
@@ -190,6 +197,8 @@ public final class TetraDataProbe {
                     schematicAliasBuilder.size());
             TetraInsight.LOGGER.info("Captured {} fixed-consumable schematics",
                     fixedConsumableSchematics.size());
+            TetraInsight.LOGGER.info("Indexed {} special-material predicates",
+                    specialMaterialMatchers.size());
             fixedConsumableSchematics.stream()
                     .filter(snapshot -> snapshot.schematicKey().startsWith("toolbelt/")
                             || snapshot.schematicKey().equals("bow/riser/adjustable_strength"))
@@ -327,11 +336,38 @@ public final class TetraDataProbe {
         }
     }
 
+    public static List<String> findSpecialMaterialSchematicKeys(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return List.of();
+        }
+        synchronized (LOCK) {
+            return specialMaterialMatchers.stream()
+                    .filter(matcher -> matcher.predicate().matches(stack))
+                    .map(SpecialMaterialMatcher::schematicKey)
+                    .distinct()
+                    .sorted()
+                    .toList();
+        }
+    }
+
+    public static String canonicalSchematicKey(String schematicKey) {
+        synchronized (LOCK) {
+            MaterialSchematicSnapshot material = materialSchematicsByKey.get(schematicKey);
+            if (material != null) {
+                return material.schematicKey();
+            }
+            FixedConsumableSchematicSnapshot fixed = fixedConsumablesByKey.get(schematicKey);
+            return fixed != null ? fixed.schematicKey() : schematicKey;
+        }
+    }
+
     private static void captureFixedConsumables(SchematicDefinition definition) {
-        List<FixedConsumableOutcomeSnapshot> outcomes = Arrays.stream(definition.outcomes)
+        List<OutcomeDefinition> fixedOutcomes = Arrays.stream(definition.outcomes)
                 .filter(outcome -> !(outcome instanceof MaterialOutcomeDefinition))
                 .filter(outcome -> !outcome.hidden)
                 .filter(outcome -> outcome.material != null && outcome.material.isValid())
+                .toList();
+        List<FixedConsumableOutcomeSnapshot> outcomes = fixedOutcomes.stream()
                 .map(outcome -> {
                     List<net.minecraft.world.item.ItemStack> materials = Arrays.stream(
                                     outcome.material.getApplicableItemStacks())
@@ -362,7 +398,15 @@ public final class TetraDataProbe {
         synchronized (LOCK) {
             fixedConsumableBuilder.add(new FixedConsumableSchematicSnapshot(
                     safeKey(definition.key), aliases, outcomes));
+            fixedOutcomes.stream()
+                    .map(outcome -> outcome.material.getPredicate())
+                    .filter(Objects::nonNull)
+                    .forEach(predicate -> specialMaterialBuilder.add(
+                            new SpecialMaterialMatcher(safeKey(definition.key), predicate)));
         }
+    }
+
+    private record SpecialMaterialMatcher(String schematicKey, ItemPredicate predicate) {
     }
 
     private static String safeKey(String key) {

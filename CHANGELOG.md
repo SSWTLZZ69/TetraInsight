@@ -1,10 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.1.3
 
 - Add compact material identity, tendency and intrinsic-data summaries to matching item tooltips.
 - Open a hovered material directly in the holosphere with the configurable material-dossier key.
 - Add Tetra-styled material and compatible-schematic dossier pages to the global material browser.
+- Delay and fade material-dossier content with Tetra's native holosphere transition timing.
+- Start material-usage trees fully collapsed while preserving expansion state across dossier tabs.
+- Add subtle transitions when opening, closing, switching dossier tabs, and paging ambiguous material definitions.
 
 ## 0.1.2
 

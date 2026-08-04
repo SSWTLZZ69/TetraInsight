@@ -29,6 +29,8 @@ import se.mickelus.mutil.gui.GuiElement;
 import se.mickelus.mutil.gui.GuiItem;
 import se.mickelus.mutil.gui.GuiRect;
 import se.mickelus.mutil.gui.GuiStringOutline;
+import se.mickelus.mutil.gui.animation.Applier;
+import se.mickelus.mutil.gui.animation.KeyframeAnimation;
 import se.mickelus.tetra.gui.ZOffsetGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.HoloGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloStatsGui;
@@ -42,6 +44,11 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     private static final int ROW_HEIGHT = 16;
     private static final int SCROLL_STEP = 2;
     private static final int STATS_RESERVED_HEIGHT = 64;
+    private static final int OPEN_DELAY = 120;
+    private static final int OPEN_DURATION = 80;
+    private static final int CLOSE_DURATION = 60;
+    private static final int PAGE_EXIT_DURATION = 45;
+    private static final int PAGE_ENTER_DURATION = 65;
     private static final int TREE_INDENT = 18;
     private static final int ITEM_FOLD_X = TREE_INDENT;
     private static final int ITEM_LABEL_X = TREE_INDENT * 2;
@@ -57,6 +64,8 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
 
     private final int panelWidth;
     private final int panelHeight;
+    private final int panelX;
+    private final int panelY;
     private final int contentWidth;
     private final int contentHeight;
     private final int usageListHeight;
@@ -67,6 +76,7 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     private final TextButton expandAllButton;
     private final TabButton materialTab;
     private final TabButton usageTab;
+    private final GuiElement pageContent;
     private final ComponentLinesGui materialContent;
     private final GuiElement usageContent;
     private final GuiRect statsDivider;
@@ -86,8 +96,12 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     private List<UsageRow> usageRows = List.of();
     private boolean usageResolved;
     private boolean statsAvailable;
+    private boolean closing;
+    private boolean pageTransitioning;
     private Page pageType = Page.MATERIAL;
     private int usageScroll;
+    private KeyframeAnimation panelAnimation;
+    private KeyframeAnimation pageAnimation;
 
     public HoloMaterialDossierPanelGui(
             int x,
@@ -97,6 +111,8 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
             Consumer<Boolean> onVisibilityChanged
     ) {
         super(x, y, 240.0D);
+        this.panelX = x;
+        this.panelY = y;
         this.panelWidth = width;
         this.panelHeight = height;
         this.contentWidth = width - CONTENT_MARGIN * 2 - 4;
@@ -150,38 +166,41 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
         addChild(usageTab);
         addChild(new TextButton(width - 12, 3, "x", this::close));
 
+        pageContent = new GuiElement(0, 0, width, height);
+        addChild(pageContent);
+
         materialContent = new ComponentLinesGui(
                 CONTENT_MARGIN, HEADER_HEIGHT, contentWidth, contentHeight);
-        addChild(materialContent);
+        pageContent.addChild(materialContent);
         usageContent = new GuiElement(
                 CONTENT_MARGIN, HEADER_HEIGHT, contentWidth, usageListHeight);
-        addChild(usageContent);
+        pageContent.addChild(usageContent);
 
         int statsY = HEADER_HEIGHT + usageListHeight;
         statsDivider = new GuiRect(
                 CONTENT_MARGIN, statsY, contentWidth, 1, COLOR_DIVIDER);
         statsDivider.setVisible(false);
-        addChild(statsDivider);
+        pageContent.addChild(statsDivider);
         statsTitle = new GuiStringOutline(CONTENT_MARGIN, statsY + 3, "");
         statsTitle.setColor(COLOR_SECONDARY);
         statsTitle.setVisible(false);
-        addChild(statsTitle);
+        pageContent.addChild(statsTitle);
         statsHint = new GuiStringOutline(
                 CONTENT_MARGIN, statsY + 18,
                 Component.translatable(
                         "tetra_insight.material.dossier.stats_hint").getString());
         statsHint.setColor(COLOR_MUTED);
         statsHint.setVisible(false);
-        addChild(statsHint);
+        pageContent.addChild(statsHint);
         statsGui = new HoloStatsGui(0, statsY + 13);
         ((HoloStatsLayoutAccess) statsGui).tetraInsight$setGridLayout(4, 84);
         statsGui.setVisible(false);
-        addChild(statsGui);
+        pageContent.addChild(statsGui);
 
         scrollTrack = new GuiRect(width - 4, HEADER_HEIGHT, 1, usageListHeight, 0x333333);
         scrollThumb = new GuiRect(width - 5, HEADER_HEIGHT, 3, 12, 0xaaaaaa);
-        addChild(scrollTrack);
-        addChild(scrollThumb);
+        pageContent.addChild(scrollTrack);
+        pageContent.addChild(scrollThumb);
         setVisible(false);
     }
 
@@ -191,7 +210,7 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
                 || !this.profile.materialKey().equals(profile.materialKey());
         this.profile = profile;
         if (profile == null) {
-            close();
+            closeImmediately();
             return;
         }
 
@@ -223,13 +242,18 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
 
     public void open() {
         if (profile != null && !isVisible()) {
+            closing = false;
             setVisible(true);
             rebuildContent();
             onVisibilityChanged.accept(true);
+            animateOpen();
         }
     }
 
     public void toggle() {
+        if (closing || isAnimating()) {
+            return;
+        }
         if (isVisible()) {
             close();
         } else {
@@ -238,17 +262,43 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     }
 
     public void close() {
-        if (!isVisible()) {
+        if (!isVisible() || closing) {
             return;
         }
+        closing = true;
+        stopPageAnimation();
+        resetPanelTransform();
+        panelAnimation = new KeyframeAnimation(CLOSE_DURATION, this)
+                .applyTo(
+                        new Applier.Opacity(1f, 0f),
+                        new Applier.TranslateY(panelY, panelY + 2f))
+                .onStop(completed -> {
+                    closing = false;
+                    if (completed) {
+                        finishClose();
+                    } else {
+                        resetPanelTransform();
+                    }
+                });
+        panelAnimation.start();
+    }
+
+    public void closeImmediately() {
+        boolean wasVisible = isVisible();
+        stopPanelAnimation();
+        stopPageAnimation();
+        closing = false;
         setVisible(false);
+        resetPanelTransform();
+        resetPageContentTransform();
         MaterialDossierSession.cancelAutoOpen();
-        onVisibilityChanged.accept(false);
+        if (wasVisible) {
+            onVisibilityChanged.accept(false);
+        }
     }
 
     public void reset() {
-        boolean wasVisible = isVisible();
-        setVisible(false);
+        closeImmediately();
         profile = null;
         usageTree = null;
         specialUsageTree = null;
@@ -261,15 +311,15 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
         collapsedSlots.clear();
         collapsedModules.clear();
         clearStats();
-        if (wasVisible) {
-            onVisibilityChanged.accept(false);
-        }
     }
 
     @Override
     public boolean onMouseClick(int mouseX, int mouseY, int button) {
         if (!isVisible()) {
             return false;
+        }
+        if (isAnimating()) {
+            return true;
         }
         super.onMouseClick(mouseX, mouseY, button);
         return true;
@@ -279,6 +329,9 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     public boolean onMouseScroll(double mouseX, double mouseY, double amount) {
         if (!isVisible()) {
             return false;
+        }
+        if (isAnimating()) {
+            return true;
         }
         if (pageType == Page.USAGE && amount != 0) {
             if (statsGui.isVisible() && statsGui.hasFocus()
@@ -292,16 +345,20 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
 
     private void moveDefinition(int offset) {
         MaterialDossierSession.move(offset).ifPresent(next ->
-                ((HoloMaterialNavigationAccess) HoloGui.getInstance())
-                        .tetraInsight$navigateMaterial(next.materialKey()));
+                animateContentSwap(Integer.signum(offset), () ->
+                        ((HoloMaterialNavigationAccess) HoloGui.getInstance())
+                                .tetraInsight$navigateMaterial(next.materialKey())));
     }
 
     private void setPageType(Page pageType) {
-        if (this.pageType == pageType) {
+        if (this.pageType == pageType || pageTransitioning) {
             return;
         }
-        this.pageType = pageType;
-        rebuildContent();
+        int direction = Integer.compare(pageType.ordinal(), this.pageType.ordinal());
+        animateContentSwap(direction, () -> {
+            this.pageType = pageType;
+            rebuildContent();
+        });
     }
 
     private void rebuildContent() {
@@ -321,6 +378,7 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
             specialUsageTree = MaterialUsageHierarchyResolver.resolveSpecial(
                     MaterialDossierSession.sourceStack());
             usageResolved = true;
+            collapseAllBranchesByDefault();
             rebuildUsageRows();
         }
         materialTab.setActive(pageType == Page.MATERIAL);
@@ -503,6 +561,15 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
         rebuildUsageRows();
     }
 
+    private void collapseAllBranchesByDefault() {
+        collapsedItems.clear();
+        collapsedSlots.clear();
+        collapsedModules.clear();
+        collectCollapsedBranches(usageTree, "regular|");
+        collectCollapsedBranches(specialUsageTree, "special|");
+        usageScroll = 0;
+    }
+
     private void collectCollapsedBranches(
             MaterialUsageTreeSnapshot tree,
             String keyPrefix
@@ -630,6 +697,92 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
             statsGui.setVisible(false);
         }
         refreshStatsState();
+    }
+
+    private void animateOpen() {
+        stopPanelAnimation();
+        resetPanelTransform();
+        panelAnimation = new KeyframeAnimation(OPEN_DURATION, this)
+                .applyTo(
+                        new Applier.Opacity(0f, 1f),
+                        new Applier.TranslateY(panelY + 2f, panelY))
+                .withDelay(OPEN_DELAY)
+                .onStop(completed -> {
+                    if (completed) {
+                        resetPanelTransform();
+                    }
+                });
+        panelAnimation.start();
+    }
+
+    private void animateContentSwap(int direction, Runnable swap) {
+        if (pageTransitioning) {
+            return;
+        }
+        pageTransitioning = true;
+        resetPageContentTransform();
+        int exitOffset = direction == 0 ? 0 : -direction * 2;
+        pageAnimation = new KeyframeAnimation(PAGE_EXIT_DURATION, pageContent)
+                .applyTo(
+                        new Applier.Opacity(1f, 0f),
+                        new Applier.TranslateX(0f, exitOffset))
+                .onStop(completed -> {
+                    if (!completed) {
+                        pageTransitioning = false;
+                        resetPageContentTransform();
+                        return;
+                    }
+                    swap.run();
+                    int enterOffset = direction == 0 ? 0 : direction * 2;
+                    pageAnimation = new KeyframeAnimation(PAGE_ENTER_DURATION, pageContent)
+                            .applyTo(
+                                    new Applier.Opacity(0f, 1f),
+                                    new Applier.TranslateX(enterOffset, 0f))
+                            .onStop(entered -> {
+                                pageTransitioning = false;
+                                resetPageContentTransform();
+                            });
+                    pageAnimation.start();
+                });
+        pageAnimation.start();
+    }
+
+    private void finishClose() {
+        setVisible(false);
+        resetPanelTransform();
+        MaterialDossierSession.cancelAutoOpen();
+        onVisibilityChanged.accept(false);
+    }
+
+    private boolean isAnimating() {
+        return (panelAnimation != null && panelAnimation.isActive()) || pageTransitioning;
+    }
+
+    private void stopPanelAnimation() {
+        if (panelAnimation != null && panelAnimation.isActive()) {
+            panelAnimation.stop();
+        }
+        panelAnimation = null;
+    }
+
+    private void stopPageAnimation() {
+        if (pageAnimation != null && pageAnimation.isActive()) {
+            pageAnimation.stop();
+        }
+        pageAnimation = null;
+        pageTransitioning = false;
+        resetPageContentTransform();
+    }
+
+    private void resetPanelTransform() {
+        setX(panelX);
+        setY(panelY);
+        setOpacity(1f);
+    }
+
+    private void resetPageContentTransform() {
+        pageContent.setX(0);
+        pageContent.setOpacity(1f);
     }
 
     private void refreshStatsState() {

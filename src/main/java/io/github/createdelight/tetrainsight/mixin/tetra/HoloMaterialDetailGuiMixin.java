@@ -91,7 +91,7 @@ public abstract class HoloMaterialDetailGuiMixin
     @Inject(method = "hide", at = @At("HEAD"), remap = false)
     private void tetraInsight$closeMaterialDossier(CallbackInfo ci) {
         if (tetraInsight$dossierPanel != null) {
-            tetraInsight$dossierPanel.close();
+            tetraInsight$dossierPanel.closeImmediately();
         }
     }
 

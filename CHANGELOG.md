@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Reset Tetra 6.17 holosphere working stacks when leaving the reused screen or resuming normal item browsing.
+- Clear both selected and hovered material entries when closing the material browser dossier.
+- Keep fold-selection state safe when a group receives no selected entry.
+
 ## 0.1.4
 
 - Migrate the addon to Tetra 6.17.x and mutil 6.3.0.

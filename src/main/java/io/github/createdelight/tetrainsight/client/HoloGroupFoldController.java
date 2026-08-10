@@ -107,7 +107,9 @@ public final class HoloGroupFoldController<T> {
     }
 
     public void updateSelection(T selected) {
-        this.selected = entries.contains(selected) ? selected : null;
+        this.selected = selected != null && entries.contains(selected)
+                ? selected
+                : null;
         if (isCollapsible() && !expanded) {
             applyLayout();
         }

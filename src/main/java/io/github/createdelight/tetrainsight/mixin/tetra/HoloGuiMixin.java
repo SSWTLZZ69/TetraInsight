@@ -1,6 +1,7 @@
 package io.github.createdelight.tetrainsight.mixin.tetra;
 
 import io.github.createdelight.tetrainsight.client.HoloCraftSlotNavigationAccess;
+import io.github.createdelight.tetrainsight.client.HoloCraftWorkingStackAccess;
 import io.github.createdelight.tetrainsight.client.HoloCraftMaterialNavigationAccess;
 import io.github.createdelight.tetrainsight.client.HoloMaterialNavigationAccess;
 import io.github.createdelight.tetrainsight.client.HoloMaterialDossierLifecycleAccess;
@@ -121,6 +122,8 @@ public abstract class HoloGuiMixin
             remap = true)
     private void tetraInsight$clearMaterialDossierSession(
             org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        ((HoloCraftWorkingStackAccess) pages[HoloPage.craft.ordinal()])
+                .tetraInsight$resetWorkingStacks();
         tetraInsight$resetMaterialDossier();
         MaterialDossierSession.clear();
     }

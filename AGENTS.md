@@ -37,7 +37,7 @@ Reuse Tetra/mutil GUI components, textures, spacing, colors, hover/selected/disa
 ## MATERIAL VISIBILITY
 
 - Item-to-material shortcuts must never hide ambiguity: when an item matches multiple definitions, open an explicit paged definition session instead of silently committing to one result.
-- Treat each H shortcut as a fresh material session captured at keypress. Because `HoloGui` is a reused singleton, reset the dossier/modal, clear `HoloMaterialListGui.hoveredItem` and stale focus before selecting that material, and cancel pending auto-open state when the dossier or screen closes.
+- Treat each H shortcut as a fresh material session captured at keypress. Because `HoloGui` is a reused singleton, reset the dossier/modal, clear stale focus before selecting that material, clear both `HoloMaterialListGui.selectedItem` and `hoveredItem` when the session closes, and cancel pending auto-open state when the dossier or screen closes.
 - Match Tetra's material-detail entrance timing for the custom dossier: keep the panel at zero opacity during the native 120 ms holographic delay, then use an 80 ms fade with at most two pixels of movement so dossier text never appears ahead of the transition.
 - Initialize every material-usage tree with item, slot, and improvement-bearing module branches collapsed; expansion is an explicit player action, while switching tabs preserves the current tree state.
 - Collapse both global `HoloMaterialListGui` and schematic `HoloVariantListGui` categories above eight entries to seven visible entries plus a Tetra-styled expand control in the eighth native slot; show a clear title-adjacent collapse control after expansion, pin an out-of-window selection, and allow only one expanded category at a time.
@@ -47,6 +47,7 @@ Reuse Tetra/mutil GUI components, textures, spacing, colors, hover/selected/disa
 - When duplicate logical materials merge, mark the result globally hidden only if every merged definition is globally hidden.
 - Treat a non-`MaterialOutcomeDefinition` outcome with a valid material predicate as a special ingredient use. Match it against the exact item stack captured by the H shortcut, retain that stack while paging ambiguous material definitions, and display those uses separately from ordinary material attributes, usage counts, and compatibility statistics.
 - For dossier stat previews, pass the before/after modular stacks to native `HoloStatsGui`. Resolve the outcome through `MaterialGlyphTintResolver` and require the exact `materialKey`; matching only the ingredient item is ambiguous when one item has multiple material definitions.
+- Tetra 6.17 keeps each `HolosphereCraftState.ItemState.workingStack` for the lifetime of the reused `HoloGui`. Scope actual or synthetic stack overrides to the active screen: restore entry defaults when the screen closes and when normal item browsing resumes, since hammer and pick configurations can share the same `tetra:modular_double` entry.
 
 ## DISPLAY TRANSLATION
 

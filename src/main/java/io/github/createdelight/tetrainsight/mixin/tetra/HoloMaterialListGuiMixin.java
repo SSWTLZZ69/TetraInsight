@@ -152,7 +152,9 @@ public abstract class HoloMaterialListGuiMixin
         boolean hadSpecialDossier = tetraInsight$specialDossierOpen
                 || tetraInsight$specialDetailStateCaptured;
         tetraInsight$specialDossierOpen = false;
+        groupsScroll.updateFocusState(0, 0, -1000000, -1000000);
         hoveredItem = null;
+        onSelect(null);
         groupsScroll.setVisible(true);
         if (tetraInsight$specialDossierPanel != null) {
             tetraInsight$specialDossierPanel.reset();

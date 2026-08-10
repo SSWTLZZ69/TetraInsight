@@ -21,8 +21,8 @@ import se.mickelus.mutil.gui.GuiStringOutline;
 import se.mickelus.mutil.gui.impl.GuiVerticalLayoutGroup;
 import se.mickelus.tetra.gui.ZOffsetGui;
 import se.mickelus.tetra.gui.stats.sorting.IStatSorter;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSortPopover;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloFilterButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSortPopover;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloFilterButton;
 
 import java.util.List;
 import java.util.Locale;

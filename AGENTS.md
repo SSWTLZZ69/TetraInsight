@@ -7,8 +7,8 @@ Tetra Insight is a client-side Minecraft 1.20.1 Forge addon for Tetra interface 
 - Minecraft 1.20.1
 - Forge 47.4.10
 - Java 17
-- Tetra 6.9.0
-- mutil 6.2.0
+- Tetra 6.17.0
+- mutil 6.3.0
 - Gradle 8.8 wrapper
 
 ## BOUNDARIES

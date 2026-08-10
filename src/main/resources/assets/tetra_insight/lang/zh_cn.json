@@ -80,6 +80,7 @@
   "tetra_insight.material.tooltip.capacity": "耐久 %s · 完整度 +%s/-%s · 魔力 %s",
   "tetra_insight.material.tooltip.intrinsic": "固有：属性 %s · 效果 %s · 特性 %s · 能力 %s · 改进 %s",
   "tetra_insight.material.tooltip.special_usages": "特殊原材料用途：%s 项",
+  "tetra_insight.material.tooltip.special_identity": "特殊原材料 · 适配 %s 项",
   "tetra_insight.material.tooltip.holosphere": "[%s] 打开全息材料档案（多定义可翻页）",
   "tetra_insight.material.dossier.button": "剖析 %s>",
   "tetra_insight.material.dossier.button.tooltip": "查看材料本体与适配方案",

@@ -34,7 +34,7 @@ import se.mickelus.mutil.gui.animation.KeyframeAnimation;
 import se.mickelus.tetra.gui.ZOffsetGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.HoloGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloStatsGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSchematicListItemGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSchematicListItemGui;
 import se.mickelus.tetra.module.SchematicRegistry;
 import se.mickelus.tetra.module.schematic.UpgradeSchematic;
 
@@ -90,6 +90,8 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     private final Set<String> collapsedSlots = new HashSet<>();
     private final Set<String> collapsedModules = new HashSet<>();
     private MaterialProfileSnapshot profile;
+    private ItemStack specialStack = ItemStack.EMPTY;
+    private boolean specialOnly;
     private MaterialUsageTreeSnapshot usageTree;
     private MaterialUsageTreeSnapshot specialUsageTree;
     private List<FormattedCharSequence> materialLines = List.of();
@@ -205,14 +207,20 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     }
 
     public void update(MaterialProfileSnapshot profile) {
-        boolean changed = this.profile == null
+        boolean changed = specialOnly
+                || this.profile == null
                 || profile == null
                 || !this.profile.materialKey().equals(profile.materialKey());
+        specialOnly = false;
+        specialStack = ItemStack.EMPTY;
         this.profile = profile;
         if (profile == null) {
             closeImmediately();
             return;
         }
+
+        definitionControls.setVisible(true);
+        materialTab.setVisible(true);
 
         Font font = Minecraft.getInstance().font;
         int titleWidth = Math.max(54, definitionControls.getX() - 10);
@@ -240,8 +248,41 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
         }
     }
 
+    public void updateSpecial(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            reset();
+            return;
+        }
+
+        boolean changed = !specialOnly || !sameSpecialStack(specialStack, stack);
+        profile = null;
+        specialOnly = true;
+        specialStack = stack.copy();
+        pageType = Page.USAGE;
+        definitionControls.setVisible(false);
+        materialTab.setVisible(false);
+        usageTab.setVisible(true);
+
+        Font font = Minecraft.getInstance().font;
+        int titleWidth = Math.max(54, usageTab.getX() - 10);
+        title.setString(font.plainSubstrByWidth(
+                stack.getHoverName().getString(), titleWidth));
+
+        if (changed) {
+            usageResolved = false;
+            usageTree = null;
+            specialUsageTree = null;
+            usageRows = List.of();
+            usageScroll = 0;
+            collapsedItems.clear();
+            collapsedSlots.clear();
+            collapsedModules.clear();
+        }
+        rebuildContent();
+    }
+
     public void open() {
-        if (profile != null && !isVisible()) {
+        if ((profile != null || specialOnly) && !isVisible()) {
             closing = false;
             setVisible(true);
             rebuildContent();
@@ -300,6 +341,8 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     public void reset() {
         closeImmediately();
         profile = null;
+        specialStack = ItemStack.EMPTY;
+        specialOnly = false;
         usageTree = null;
         specialUsageTree = null;
         materialLines = List.of();
@@ -362,7 +405,7 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
     }
 
     private void rebuildContent() {
-        if (profile == null) {
+        if (!specialOnly && profile == null) {
             materialLines = List.of();
             usageTree = null;
             specialUsageTree = null;
@@ -371,12 +414,17 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
             return;
         }
 
+        if (specialOnly) {
+            pageType = Page.USAGE;
+        }
         if (pageType == Page.MATERIAL) {
             materialLines = wrap(materialLines(profile));
         } else if (!usageResolved) {
-            usageTree = MaterialUsageHierarchyResolver.resolve(profile);
+            usageTree = specialOnly
+                    ? new MaterialUsageTreeSnapshot(List.of())
+                    : MaterialUsageHierarchyResolver.resolve(profile);
             specialUsageTree = MaterialUsageHierarchyResolver.resolveSpecial(
-                    MaterialDossierSession.sourceStack());
+                    specialOnly ? specialStack : MaterialDossierSession.sourceStack());
             usageResolved = true;
             collapseAllBranchesByDefault();
             rebuildUsageRows();
@@ -593,6 +641,9 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
 
     private void refreshContent() {
         boolean usagePage = pageType == Page.USAGE;
+        definitionControls.setVisible(!specialOnly);
+        materialTab.setVisible(!specialOnly);
+        usageTab.setVisible(true);
         collapseAllButton.setVisible(usagePage);
         expandAllButton.setVisible(usagePage);
         materialContent.setVisible(pageType == Page.MATERIAL);
@@ -637,6 +688,14 @@ public final class HoloMaterialDossierPanelGui extends ZOffsetGui {
                 : travel * usageScroll / maxUsageScroll());
         scrollThumb.setY(thumbY);
         scrollThumb.setHeight(thumbHeight);
+    }
+
+    private static boolean sameSpecialStack(ItemStack left, ItemStack right) {
+        return left != null
+                && right != null
+                && !left.isEmpty()
+                && !right.isEmpty()
+                && ItemStack.isSameItemSameTags(left, right);
     }
 
     private GuiElement createUsageRow(UsageRow row, int y) {

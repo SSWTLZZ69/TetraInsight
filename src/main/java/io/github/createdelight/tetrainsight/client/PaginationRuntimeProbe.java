@@ -19,11 +19,11 @@ import se.mickelus.tetra.gui.stats.getter.StatGetterEffectLevel;
 import se.mickelus.tetra.gui.stats.sorting.BasicStatSorter;
 import se.mickelus.tetra.gui.stats.sorting.IStatSorter;
 import se.mickelus.tetra.gui.stats.sorting.NaturalSorter;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSortButton;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSortPopover;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloFilterButton;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementButton;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSchematicGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSortButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSortPopover;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloFilterButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSchematicGui;
 
 import java.util.Arrays;
 

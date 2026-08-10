@@ -30,6 +30,7 @@ public final class MaterialDossierShortcut {
 
     private static List<MaterialProfileSnapshot> hoveredProfiles = List.of();
     private static ItemStack hoveredStack = ItemStack.EMPTY;
+    private static boolean hoveredSpecialOnly;
     private static long lastHoverAt;
 
     private MaterialDossierShortcut() {
@@ -41,10 +42,12 @@ public final class MaterialDossierShortcut {
 
     public static void setHoveredProfiles(
             List<MaterialProfileSnapshot> profiles,
-            ItemStack stack
+            ItemStack stack,
+            boolean specialOnly
     ) {
         hoveredProfiles = List.copyOf(profiles);
         hoveredStack = stack != null ? stack.copy() : ItemStack.EMPTY;
+        hoveredSpecialOnly = profiles.isEmpty() && specialOnly;
         lastHoverAt = Util.getMillis();
     }
 
@@ -53,7 +56,7 @@ public final class MaterialDossierShortcut {
     }
 
     public static void onKeyPressed(ScreenEvent.KeyPressed.Pre event) {
-        if (hoveredProfiles.isEmpty()
+        if ((hoveredProfiles.isEmpty() && !hoveredSpecialOnly)
                 || Util.getMillis() - lastHoverAt > HOVER_VALIDITY_MS
                 || !OPEN.isActiveAndMatches(InputConstants.getKey(
                         event.getKeyCode(), event.getScanCode()))) {
@@ -77,18 +80,27 @@ public final class MaterialDossierShortcut {
             return;
         }
 
-        MaterialProfileSnapshot profile = hoveredProfiles.get(0);
         Screen previousScreen = event.getScreen();
         HoloGui holoGui = HoloGui.getInstance();
         ((HoloMaterialDossierLifecycleAccess) holoGui)
                 .tetraInsight$resetMaterialDossier();
-        MaterialDossierSession.start(hoveredProfiles, hoveredStack);
+        if (hoveredProfiles.isEmpty()) {
+            MaterialDossierSession.startSpecial(hoveredStack);
+        } else {
+            MaterialDossierSession.start(hoveredProfiles, hoveredStack);
+        }
         minecraft.setScreen(holoGui);
-        ((HoloMaterialNavigationAccess) holoGui).tetraInsight$openMaterial(
-                profile.materialKey(),
-                () -> ClientScheduler.schedule(
-                        0,
-                        () -> Minecraft.getInstance().setScreen(previousScreen)));
+        Runnable closeCallback = () -> ClientScheduler.schedule(
+                0,
+                () -> Minecraft.getInstance().setScreen(previousScreen));
+        if (hoveredProfiles.isEmpty()) {
+            ((HoloMaterialNavigationAccess) holoGui)
+                    .tetraInsight$openSpecialMaterial(hoveredStack, closeCallback);
+        } else {
+            MaterialProfileSnapshot profile = hoveredProfiles.get(0);
+            ((HoloMaterialNavigationAccess) holoGui)
+                    .tetraInsight$openMaterial(profile.materialKey(), closeCallback);
+        }
         holoGui.onShow();
     }
 }

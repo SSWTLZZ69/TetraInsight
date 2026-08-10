@@ -3,13 +3,14 @@ package io.github.createdelight.tetrainsight.client;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import se.mickelus.mutil.gui.GuiClickable;
 import se.mickelus.mutil.gui.GuiString;
 import se.mickelus.mutil.gui.GuiTexture;
 import se.mickelus.tetra.blocks.workbench.gui.GuiModuleGlyph;
 import se.mickelus.tetra.gui.GuiTextures;
 import se.mickelus.tetra.items.modular.IModularItem;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.OutcomeStack;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.OutcomeStack;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 
 import java.util.List;
@@ -141,7 +142,11 @@ public final class HoloImprovementOverviewEntryGui extends GuiClickable {
 
     private String tetraInsight$title() {
         if (entry.isChain()) {
-            return IModularItem.getImprovementName(entry.improvementKey(), 0);
+            OutcomePreview[] previews = entry.previews();
+            ItemStack stack = previews.length > 0 && previews[0].itemStack != null
+                    ? previews[0].itemStack
+                    : ItemStack.EMPTY;
+            return IModularItem.getImprovementName(entry.improvementKey(), 0, stack);
         }
         return entry.schematic().getName();
     }

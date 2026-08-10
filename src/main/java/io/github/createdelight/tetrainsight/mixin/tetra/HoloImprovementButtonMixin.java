@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.mutil.gui.GuiString;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementButton;
 
 @Mixin(value = HoloImprovementButton.class, remap = false)
 public abstract class HoloImprovementButtonMixin implements HoloImprovementButtonAccess {

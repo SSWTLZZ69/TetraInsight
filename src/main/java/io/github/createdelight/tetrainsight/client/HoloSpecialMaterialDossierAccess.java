@@ -2,8 +2,6 @@ package io.github.createdelight.tetrainsight.client;
 
 import net.minecraft.world.item.ItemStack;
 
-public interface HoloCraftMaterialNavigationAccess {
-    void tetraInsight$openMaterial(String materialKey);
-
+public interface HoloSpecialMaterialDossierAccess {
     void tetraInsight$openSpecialMaterial(ItemStack stack);
 }

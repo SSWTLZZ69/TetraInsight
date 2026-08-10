@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.mutil.gui.GuiElement;
 import se.mickelus.mutil.gui.impl.GuiHorizontalLayoutGroup;
 import se.mickelus.mutil.gui.impl.GuiHorizontalScrollable;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloVariantListGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloVariantListGui;
 
 @Mixin(value = HoloVariantListGui.class, remap = false)
 public abstract class HoloVariantListGuiMixin {

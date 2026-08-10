@@ -14,7 +14,7 @@ import se.mickelus.tetra.blocks.workbench.gui.GuiModuleGlyph;
 import se.mickelus.tetra.gui.GuiItemRolling;
 import se.mickelus.tetra.gui.GuiTextures;
 import se.mickelus.tetra.items.modular.IModularItem;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementVariantGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementVariantGui;
 import se.mickelus.tetra.module.ItemModule;
 import se.mickelus.tetra.module.ItemModuleMajor;
 import se.mickelus.tetra.module.data.GlyphData;

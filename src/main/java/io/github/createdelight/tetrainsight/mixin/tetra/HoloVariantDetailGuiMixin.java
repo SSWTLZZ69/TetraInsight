@@ -19,11 +19,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementButton;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementListGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementListGui;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloStatsGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloVariantDetailGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.OutcomeStack;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloVariantDetailGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.OutcomeStack;
 import se.mickelus.tetra.module.SchematicRegistry;
 import se.mickelus.tetra.module.schematic.CraftingContext;
 import se.mickelus.tetra.module.schematic.ConfigSchematic;
@@ -569,7 +569,7 @@ public abstract class HoloVariantDetailGuiMixin
             method = "updateVariant",
             at = @At(
                     value = "INVOKE",
-                    target = "Lse/mickelus/tetra/items/modular/impl/holo/gui/craft/HoloImprovementButton;updateCount(I)V"),
+                    target = "Lse/mickelus/tetra/items/modular/impl/holo/gui/craft/schematic/HoloImprovementButton;updateCount(I)V"),
             remap = false)
     private void tetraInsight$rememberImprovementCount(HoloImprovementButton button, int count) {
         tetraInsight$improvementCount = tetraInsight$countDisplayGroups(

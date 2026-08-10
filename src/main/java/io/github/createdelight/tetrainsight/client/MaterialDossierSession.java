@@ -21,6 +21,13 @@ public final class MaterialDossierSession {
         autoOpen = !definitions.isEmpty();
     }
 
+    public static void startSpecial(ItemStack stack) {
+        definitions = List.of();
+        sourceStack = stack != null ? stack.copy() : ItemStack.EMPTY;
+        index = 0;
+        autoOpen = false;
+    }
+
     public static void clear() {
         definitions = List.of();
         sourceStack = ItemStack.EMPTY;

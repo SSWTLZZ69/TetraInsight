@@ -30,13 +30,13 @@ side="CLIENT"
 [[dependencies.${mod_id}]]
 modId="tetra"
 mandatory=true
-versionRange="[6.9.0,6.10.0)"
+versionRange="[6.17.0,6.18.0)"
 ordering="AFTER"
 side="CLIENT"
 
 [[dependencies.${mod_id}]]
 modId="mutil"
 mandatory=true
-versionRange="[6.2.0,)"
+versionRange="[6.3.0,)"
 ordering="AFTER"
 side="CLIENT"

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.mutil.gui.GuiElement;
 import se.mickelus.mutil.gui.animation.KeyframeAnimation;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloMaterialGroupGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.material.HoloMaterialGroupGui;
 import se.mickelus.tetra.module.data.MaterialData;
 
 import java.util.List;

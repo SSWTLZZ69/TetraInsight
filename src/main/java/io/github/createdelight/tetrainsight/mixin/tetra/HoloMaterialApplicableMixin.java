@@ -17,8 +17,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import se.mickelus.mutil.gui.GuiTexture;
 import se.mickelus.tetra.items.modular.IModularItem;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloMaterialApplicable;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloMaterialTranslationGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloMaterialApplicable;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloMaterialTranslationGui;
 
 @Mixin(value = HoloMaterialApplicable.class, remap = false)
 public abstract class HoloMaterialApplicableMixin implements WorkbenchMaterialInfoAccess {

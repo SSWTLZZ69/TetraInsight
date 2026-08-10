@@ -6,6 +6,7 @@ import io.github.createdelight.tetrainsight.client.HoloHoningTargetAccess;
 import io.github.createdelight.tetrainsight.client.HoloMaterialSelectionAccess;
 import io.github.createdelight.tetrainsight.client.HoloMaterialDossierLifecycleAccess;
 import io.github.createdelight.tetrainsight.client.HoloMaterialDossierModalAccess;
+import io.github.createdelight.tetrainsight.client.HoloSpecialMaterialDossierAccess;
 import io.github.createdelight.tetrainsight.client.HoloSchematicVariantNavigationAccess;
 import io.github.createdelight.tetrainsight.client.HoloUsageNavigationAccess;
 import net.minecraft.world.item.ItemStack;
@@ -16,11 +17,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.tetra.items.modular.IModularItem;
+import se.mickelus.tetra.items.modular.impl.dynamic.DynamicModularItem;
 import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloCraftRootGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloMaterialListGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSchematicGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HolosphereCraftState;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HolosphereEntryStore;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.material.HoloMaterialListGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSchematicGui;
 import se.mickelus.tetra.module.schematic.UpgradeSchematic;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
+
+import java.util.Map;
 
 @Mixin(value = HoloCraftRootGui.class, remap = false)
 public abstract class HoloCraftRootGuiMixin
@@ -36,22 +42,21 @@ public abstract class HoloCraftRootGuiMixin
     private HoloMaterialListGui materialsView;
 
     @Shadow
-    private IModularItem item;
+    @Final
+    private HolosphereCraftState state;
 
-    @Shadow
-    private ItemStack itemStack;
-
-    @Shadow
-    private void onSlotSelect(String slot) {
+    @Inject(method = "openFromWorkbench", at = @At("RETURN"), remap = false)
+    private void tetraInsight$restoreSlotNavigation(IModularItem item, ItemStack itemStack,
+            String slot, UpgradeSchematic schematic, CallbackInfo ci) {
+        if (slot != null && schematic == null) {
+            tetraInsight$openFromWorkbenchState(item, itemStack, slot, null);
+        }
     }
 
-    @Shadow
-    private void onMaterialsSelect() {
-    }
-
-    @Inject(method = "updateState", at = @At("HEAD"), remap = false)
+    @Inject(method = "openFromWorkbench", at = @At("HEAD"), remap = false)
     private void tetraInsight$forwardHoningTarget(IModularItem item, ItemStack itemStack,
             String slot, UpgradeSchematic schematic, CallbackInfo ci) {
+        tetraInsight$prepareWorkingStack(item, itemStack);
         ((HoloHoningTargetAccess) schematicView).tetraInsight$setHoningTarget(itemStack);
     }
 
@@ -61,16 +66,22 @@ public abstract class HoloCraftRootGuiMixin
             ItemStack itemStack,
             String slot
     ) {
-        this.item = item;
-        this.itemStack = itemStack;
-        onSlotSelect(slot);
+        ((HoloCraftRootGui) (Object) this)
+                .openFromWorkbench(item, itemStack, slot, null);
     }
 
     @Override
     public void tetraInsight$openMaterial(String materialKey) {
-        onMaterialsSelect();
+        state.onMaterialsSelect();
         ((HoloMaterialSelectionAccess) materialsView)
                 .tetraInsight$selectMaterial(materialKey);
+    }
+
+    @Override
+    public void tetraInsight$openSpecialMaterial(ItemStack stack) {
+        state.onMaterialsSelect();
+        ((HoloSpecialMaterialDossierAccess) materialsView)
+                .tetraInsight$openSpecialMaterial(stack);
     }
 
     @Override
@@ -98,7 +109,8 @@ public abstract class HoloCraftRootGuiMixin
             String slot,
             UpgradeSchematic schematic
     ) {
-        ((HoloCraftRootGui) (Object) this).updateState(item, itemStack, slot, schematic);
+        ((HoloCraftRootGui) (Object) this)
+                .openFromWorkbench(item, itemStack, slot, schematic);
     }
 
     @Override
@@ -110,8 +122,42 @@ public abstract class HoloCraftRootGuiMixin
             OutcomePreview parentPreview
     ) {
         ((HoloCraftRootGui) (Object) this)
-                .updateState(item, itemStack, slot, parentSchematic);
+                .openFromWorkbench(item, itemStack, slot, parentSchematic);
         ((HoloSchematicVariantNavigationAccess) schematicView)
                 .tetraInsight$openVariantImprovements(parentPreview);
+    }
+
+    private void tetraInsight$prepareWorkingStack(IModularItem item, ItemStack itemStack) {
+        String key = tetraInsight$findHolosphereKey(item, itemStack);
+        if (key == null) {
+            return;
+        }
+
+        HolosphereCraftState.ItemState itemState = state.getItemState().get(key);
+        if (itemState != null) {
+            itemState.setWorkingStack(itemStack.copy());
+        }
+    }
+
+    private void tetraInsight$openFromWorkbenchState(IModularItem item, ItemStack itemStack,
+            String slot, UpgradeSchematic schematic) {
+        String key = tetraInsight$findHolosphereKey(item, itemStack);
+        if (key == null || state.getItemState().get(key) == null) {
+            state.onItemSelect(null);
+            return;
+        }
+
+        state.getItemState().get(key).setWorkingStack(itemStack.copy());
+        state.openFromWorkbench(key, itemStack, slot, schematic);
+    }
+
+    private static String tetraInsight$findHolosphereKey(IModularItem item, ItemStack itemStack) {
+        return HolosphereEntryStore.instance.getEntries().entrySet().stream()
+                .filter(entry -> entry.getValue().item.equals(item))
+                .filter(entry -> entry.getValue().archetype == null
+                        || entry.getValue().archetype.equals(DynamicModularItem.getArchetypeKey(itemStack)))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
     }
 }

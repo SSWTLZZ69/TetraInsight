@@ -2,8 +2,8 @@ package io.github.createdelight.tetrainsight.client;
 
 import io.github.createdelight.tetrainsight.mixin.tetra.HoloImprovementVariantGuiAccessor;
 import net.minecraft.network.chat.Component;
-import se.mickelus.mutil.gui.ColorHelper;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementVariantGui;
+import se.mickelus.mutil.gui.SimpleColor;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementVariantGui;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 
 import java.util.List;
@@ -77,8 +77,8 @@ public class HoloImprovementChainLevelGui extends HoloImprovementVariantGui {
         }
 
         if ((!available || (groupActive && !selected)) && !focused) {
-            backdropColor = ColorHelper.withBrightness(backdropColor, 0.55);
-            labelColor = ColorHelper.withBrightness(labelColor, 0.55);
+            backdropColor = SimpleColor.withBrightness(backdropColor, 0.55);
+            labelColor = SimpleColor.withBrightness(labelColor, 0.55);
         }
 
         HoloImprovementVariantGuiAccessor access =

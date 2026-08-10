@@ -19,12 +19,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import se.mickelus.tetra.items.modular.IModularItem;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementButton;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloMaterialTranslationGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSchematicGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSortButton;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloVariantDetailGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloMaterialTranslationGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSchematicGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSortButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloVariantDetailGui;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 import se.mickelus.tetra.module.schematic.UpgradeSchematic;
 import se.mickelus.mutil.gui.GuiElement;
@@ -111,7 +110,7 @@ public abstract class HoloSchematicGuiMixin
     }
 
     @Inject(method = "update", at = @At("RETURN"), remap = false)
-    private void tetraInsight$resetPersistentImprovementEntry(IModularItem item, String slot,
+    private void tetraInsight$resetPersistentImprovementEntry(ItemStack item, String slot,
             UpgradeSchematic schematic, CallbackInfo ci) {
         tetraInsight$refreshImprovementEntry();
         TetraDataProbe.findSchematic(schematic.getKey())
@@ -125,7 +124,7 @@ public abstract class HoloSchematicGuiMixin
     }
 
     @Inject(method = "update", at = @At("HEAD"), remap = false)
-    private void tetraInsight$setActualSorterTargets(IModularItem item, String slot,
+    private void tetraInsight$setActualSorterTargets(ItemStack item, String slot,
             UpgradeSchematic schematic, CallbackInfo ci) {
         ((HoloSortMaterialScalingAccess) sortbutton).tetraInsight$setActualMaterialScaling(
                 TetraDataProbe.findActualMaterialScaling(schematic.getKey()));

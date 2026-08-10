@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4
+
+- Migrate the addon to Tetra 6.17.x and mutil 6.3.0.
+- Add material-dossier navigation and special material-use presentation for ambiguous material matches.
+- Preserve Tetra's native holosphere navigation, pagination and transition behavior while adapting the expanded dossier UI.
+
 ## 0.1.3
 
 - Add compact material identity, tendency and intrinsic-data summaries to matching item tooltips.

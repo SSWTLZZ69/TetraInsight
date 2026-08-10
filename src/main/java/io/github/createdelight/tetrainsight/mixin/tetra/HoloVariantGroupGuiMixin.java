@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.mutil.gui.GuiElement;
 import se.mickelus.mutil.gui.animation.KeyframeAnimation;
 import se.mickelus.tetra.gui.stats.sorting.IStatSorter;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloVariantGroupGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloVariantGroupGui;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 
 import java.util.List;

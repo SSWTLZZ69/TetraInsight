@@ -57,6 +57,14 @@ public abstract class HoloGuiMixin
     }
 
     @Override
+    public void tetraInsight$openSpecialMaterial(ItemStack stack, Runnable closeCallback) {
+        changePage(HoloPage.craft);
+        ((HoloCraftMaterialNavigationAccess) pages[HoloPage.craft.ordinal()])
+                .tetraInsight$openSpecialMaterial(stack);
+        this.closeCallback = closeCallback;
+    }
+
+    @Override
     public void tetraInsight$navigateMaterial(String materialKey) {
         changePage(HoloPage.craft);
         ((HoloCraftMaterialNavigationAccess) pages[HoloPage.craft.ordinal()])

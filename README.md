@@ -22,8 +22,8 @@ Tetra Insight is a client-side Forge addon for Minecraft 1.20.1 that makes Tetra
 
 - Minecraft 1.20.1
 - Forge 47.4.10 or newer in the 47.x line
-- Tetra 6.9.x
-- mutil 6.2.0 or newer
+- Tetra 6.17.x
+- mutil 6.3.0 or newer
 
 Tetra Insight is client-side. It does not need to be installed on a dedicated server.
 
@@ -35,7 +35,7 @@ Tetra Insight is client-side. It does not need to be installed on a dedicated se
 
 ## Compatibility status
 
-The first public builds are marked Alpha because Tetra Insight uses version-sensitive mixins around Tetra 6.9.x interfaces. It has been tested in a large modpack environment, with extensive third-party Tetra schematics and with ExtraHoloPage-style expanded layouts. Please include `latest.log` and the affected module or schematic name in bug reports.
+The first public builds are marked Alpha because Tetra Insight uses version-sensitive mixins around Tetra 6.17.x interfaces. It has been tested in a large modpack environment, with extensive third-party Tetra schematics and with ExtraHoloPage-style expanded layouts. Please include `latest.log` and the affected module or schematic name in bug reports.
 
 ## Development
 

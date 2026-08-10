@@ -1,6 +1,6 @@
 package io.github.createdelight.tetrainsight.client;
 
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.OutcomeStack;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.OutcomeStack;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 import se.mickelus.tetra.module.schematic.UpgradeSchematic;
 

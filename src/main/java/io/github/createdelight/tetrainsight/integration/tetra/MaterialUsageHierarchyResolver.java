@@ -10,6 +10,10 @@ import io.github.createdelight.tetrainsight.integration.tetra.model.MaterialUsag
 import io.github.createdelight.tetrainsight.integration.tetra.model.MaterialUsageNavigationSnapshot;
 import io.github.createdelight.tetrainsight.integration.tetra.model.MaterialUsageSnapshot;
 import io.github.createdelight.tetrainsight.integration.tetra.model.MaterialUsageTreeSnapshot;
+import io.github.createdelight.tetrainsight.mixin.tetra.AndRequirementAccessor;
+import io.github.createdelight.tetrainsight.mixin.tetra.ConfigSchematicAccessor;
+import io.github.createdelight.tetrainsight.mixin.tetra.NotRequirementAccessor;
+import io.github.createdelight.tetrainsight.mixin.tetra.OrRequirementAccessor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,13 +35,20 @@ import se.mickelus.tetra.items.modular.impl.ModularBladedItem;
 import se.mickelus.tetra.items.modular.impl.ModularDoubleHeadedItem;
 import se.mickelus.tetra.items.modular.impl.ModularSingleHeadedItem;
 import se.mickelus.tetra.items.modular.impl.bow.ModularBowItem;
-import se.mickelus.tetra.items.modular.impl.crossbow.ModularCrossbowItem;
+import se.mickelus.tetra.items.modular.impl.crossbow.ModularCrossbowItemImpl;
 import se.mickelus.tetra.items.modular.impl.shield.ModularShieldItem;
 import se.mickelus.tetra.items.modular.impl.toolbelt.ModularToolbeltItem;
 import se.mickelus.tetra.module.SchematicRegistry;
+import se.mickelus.tetra.module.schematic.ConfigSchematic;
+import se.mickelus.tetra.module.schematic.CraftingContext;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 import se.mickelus.tetra.module.schematic.SchematicType;
 import se.mickelus.tetra.module.schematic.UpgradeSchematic;
+import se.mickelus.tetra.module.schematic.requirement.AndRequirement;
+import se.mickelus.tetra.module.schematic.requirement.CraftingRequirement;
+import se.mickelus.tetra.module.schematic.requirement.ModuleRequirement;
+import se.mickelus.tetra.module.schematic.requirement.NotRequirement;
+import se.mickelus.tetra.module.schematic.requirement.OrRequirement;
 
 public final class MaterialUsageHierarchyResolver {
     private static final Object LOCK = new Object();
@@ -267,7 +278,8 @@ public final class MaterialUsageHierarchyResolver {
             ItemStack stack = parent.itemStack;
             if (stack == null || stack.isEmpty()
                     || !target.isRelevant(stack)
-                    || !target.isApplicableForSlot(slot, stack)) {
+                    || !target.isApplicableForSlot(slot, stack)
+                    || !matchesModuleOwnership(target, stack, slot)) {
                 continue;
             }
             OutcomePreview preview = previews(target, stack, slot).stream()
@@ -279,6 +291,77 @@ public final class MaterialUsageHierarchyResolver {
             }
         }
         return java.util.Optional.empty();
+    }
+
+    /**
+     * Matches Tetra's improvement-to-module ownership check without requiring
+     * every non-structural requirement (such as empowered state) to be present
+     * on the synthetic parent preview.
+     */
+    private static boolean matchesModuleOwnership(
+            UpgradeSchematic schematic,
+            ItemStack stack,
+            String slot
+    ) {
+        if (!(schematic instanceof ConfigSchematic config)) {
+            return true;
+        }
+
+        CraftingRequirement requirement = ((ConfigSchematicAccessor) config)
+                .tetraInsight$getDefinition().requirement;
+        if (requirement == null) {
+            return true;
+        }
+
+        CraftingContext context = new CraftingContext(
+                null,
+                null,
+                null,
+                null,
+                stack,
+                slot,
+                new ResourceLocation[0]);
+        boolean[] moduleState = new boolean[2];
+        collectModuleRequirements(requirement, context, false, moduleState);
+        return !moduleState[0] || moduleState[1];
+    }
+
+    private static void collectModuleRequirements(
+            CraftingRequirement requirement,
+            CraftingContext context,
+            boolean negated,
+            boolean[] moduleState
+    ) {
+        if (requirement == null) {
+            return;
+        }
+        if (requirement instanceof NotRequirement) {
+            collectModuleRequirements(
+                    ((NotRequirementAccessor) requirement).tetraInsight$getRequirement(),
+                    context,
+                    !negated,
+                    moduleState);
+            return;
+        }
+        if (requirement instanceof AndRequirement) {
+            for (CraftingRequirement child : ((AndRequirementAccessor) requirement)
+                    .tetraInsight$getRequirements()) {
+                collectModuleRequirements(child, context, negated, moduleState);
+            }
+            return;
+        }
+        if (requirement instanceof OrRequirement) {
+            for (CraftingRequirement child : ((OrRequirementAccessor) requirement)
+                    .tetraInsight$getRequirements()) {
+                collectModuleRequirements(child, context, negated, moduleState);
+            }
+            return;
+        }
+        if (negated || !(requirement instanceof ModuleRequirement)) {
+            return;
+        }
+        moduleState[0] = true;
+        moduleState[1] |= requirement.test(context);
     }
 
     private static Map<String, UpgradeSchematic> resolveTargets(Set<String> usageKeys) {
@@ -383,7 +466,7 @@ public final class MaterialUsageHierarchyResolver {
             tetraKey = "tetra.holo.craft.modular_sword";
         } else if (item instanceof ModularBowItem) {
             tetraKey = "tetra.holo.craft.modular_bow";
-        } else if (item instanceof ModularCrossbowItem) {
+        } else if (item instanceof ModularCrossbowItemImpl) {
             tetraKey = "tetra.holo.craft.modular_crossbow";
         } else if (item instanceof ModularShieldItem) {
             tetraKey = "tetra.holo.craft.modular_shield";

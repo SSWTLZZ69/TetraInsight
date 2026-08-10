@@ -80,6 +80,7 @@
   "tetra_insight.material.tooltip.capacity": "Durability %s · Integrity +%s/-%s · Magic %s",
   "tetra_insight.material.tooltip.intrinsic": "Intrinsic: %s attributes · %s effects · %s aspects · %s features · %s improvements",
   "tetra_insight.material.tooltip.special_usages": "Special ingredient uses: %s",
+  "tetra_insight.material.tooltip.special_identity": "Special ingredient · %s compatible uses",
   "tetra_insight.material.tooltip.holosphere": "[%s] Open dossier (paged for multiple definitions)",
   "tetra_insight.material.dossier.button": "Analyze %s>",
   "tetra_insight.material.dossier.button.tooltip": "View intrinsic properties and compatible schematics",

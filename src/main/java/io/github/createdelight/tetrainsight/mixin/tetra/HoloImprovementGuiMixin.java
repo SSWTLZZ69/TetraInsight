@@ -33,9 +33,9 @@ import se.mickelus.mutil.gui.GuiElement;
 import se.mickelus.mutil.gui.GuiString;
 import se.mickelus.mutil.gui.GuiTexture;
 import se.mickelus.mutil.gui.impl.GuiHorizontalLayoutGroup;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloImprovementVariantGui;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.OutcomeStack;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloImprovementVariantGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.OutcomeStack;
 import se.mickelus.tetra.items.modular.IModularItem;
 import se.mickelus.tetra.module.schematic.ConfigSchematic;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
@@ -164,7 +164,7 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
             method = "updateVariants",
             at = @At(
                     value = "NEW",
-                    target = "se/mickelus/tetra/items/modular/impl/holo/gui/craft/HoloImprovementVariantGui"),
+                    target = "se/mickelus/tetra/items/modular/impl/holo/gui/craft/schematic/HoloImprovementVariantGui"),
             remap = false)
     private HoloImprovementVariantGui tetraInsight$useModuleVariantPresentation(
             int x, int y, String name, int labelStart, OutcomePreview preview,
@@ -455,7 +455,8 @@ public abstract class HoloImprovementGuiMixin implements HoloImprovementGuiExten
         String translationKey = "tetra.improvement."
                 + tetraInsight$chainKey + ".name";
         if (Language.getInstance().has(translationKey)) {
-            return IModularItem.getImprovementName(tetraInsight$chainKey, 0);
+            return IModularItem.getImprovementName(
+                    tetraInsight$chainKey, 0, tetraInsight$itemStack);
         }
         return tetraInsight$chainEntries.isEmpty()
                 ? tetraInsight$chainKey

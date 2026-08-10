@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.mutil.gui.GuiString;
 import se.mickelus.tetra.gui.stats.sorting.IStatSorter;
 import se.mickelus.tetra.gui.stats.sorting.StatSorters;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloSortButton;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.schematic.HoloSortButton;
 import se.mickelus.tetra.module.schematic.OutcomePreview;
 
 import java.util.List;

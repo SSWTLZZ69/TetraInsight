@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.mickelus.tetra.gui.stats.getter.ILabelGetter;
-import se.mickelus.tetra.items.modular.impl.holo.gui.craft.HoloMaterialStatGui;
+import se.mickelus.tetra.items.modular.impl.holo.gui.craft.material.HoloMaterialStatGui;
 import se.mickelus.tetra.module.data.MaterialData;
 
 @Mixin(value = HoloMaterialStatGui.class, remap = false)

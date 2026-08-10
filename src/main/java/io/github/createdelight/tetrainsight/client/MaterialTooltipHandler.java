@@ -18,12 +18,26 @@ public final class MaterialTooltipHandler {
 
     public static void onTooltip(ItemTooltipEvent event) {
         List<MaterialProfileSnapshot> profiles = MaterialInsightIndex.findProfiles(event.getItemStack());
-        MaterialDossierShortcut.setHoveredProfiles(profiles, event.getItemStack());
-        if (profiles.isEmpty()) {
-            return;
-        }
         int specialUsages = TetraDataProbe.findSpecialMaterialSchematicKeys(
                 event.getItemStack()).size();
+        MaterialDossierShortcut.setHoveredProfiles(
+                profiles, event.getItemStack(), specialUsages > 0);
+        if (profiles.isEmpty()) {
+            if (specialUsages > 0) {
+                List<Component> insight = List.of(
+                        Component.translatable(
+                                        "tetra_insight.material.tooltip.special_identity",
+                                        specialUsages)
+                                .withStyle(ChatFormatting.WHITE),
+                        Component.translatable(
+                                        "tetra_insight.material.tooltip.holosphere",
+                                        MaterialDossierShortcut.keyName())
+                                .withStyle(ChatFormatting.GRAY));
+                int insertion = Math.min(1, event.getToolTip().size());
+                event.getToolTip().addAll(insertion, insight);
+            }
+            return;
+        }
 
         List<Component> insight = profiles.size() == 1
                 ? singleProfile(profiles.get(0), specialUsages)

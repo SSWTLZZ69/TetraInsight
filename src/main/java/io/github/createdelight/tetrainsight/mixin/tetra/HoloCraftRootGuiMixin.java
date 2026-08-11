@@ -10,10 +10,12 @@ import io.github.createdelight.tetrainsight.client.HoloMaterialDossierModalAcces
 import io.github.createdelight.tetrainsight.client.HoloSpecialMaterialDossierAccess;
 import io.github.createdelight.tetrainsight.client.HoloSchematicVariantNavigationAccess;
 import io.github.createdelight.tetrainsight.client.HoloUsageNavigationAccess;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -46,6 +48,9 @@ public abstract class HoloCraftRootGuiMixin
     @Final
     private HolosphereCraftState state;
 
+    @Unique
+    private boolean tetraInsight$useWorkingStackOverride;
+
     @Inject(method = "openFromWorkbench", at = @At("RETURN"), remap = false)
     private void tetraInsight$restoreSlotNavigation(IModularItem item, ItemStack itemStack,
             String slot, UpgradeSchematic schematic, CallbackInfo ci) {
@@ -57,7 +62,7 @@ public abstract class HoloCraftRootGuiMixin
     @Inject(method = "openFromWorkbench", at = @At("HEAD"), remap = false)
     private void tetraInsight$forwardHoningTarget(IModularItem item, ItemStack itemStack,
             String slot, UpgradeSchematic schematic, CallbackInfo ci) {
-        tetraInsight$prepareWorkingStack(item, itemStack);
+        tetraInsight$applyWorkingStack(item, itemStack);
         ((HoloHoningTargetAccess) schematicView).tetraInsight$setHoningTarget(itemStack);
     }
 
@@ -125,8 +130,7 @@ public abstract class HoloCraftRootGuiMixin
             String slot,
             UpgradeSchematic schematic
     ) {
-        ((HoloCraftRootGui) (Object) this)
-                .openFromWorkbench(item, itemStack, slot, schematic);
+        tetraInsight$openWithWorkingStack(item, itemStack, slot, schematic);
     }
 
     @Override
@@ -137,21 +141,38 @@ public abstract class HoloCraftRootGuiMixin
             UpgradeSchematic parentSchematic,
             OutcomePreview parentPreview
     ) {
-        ((HoloCraftRootGui) (Object) this)
-                .openFromWorkbench(item, itemStack, slot, parentSchematic);
+        tetraInsight$openWithWorkingStack(item, itemStack, slot, parentSchematic);
         ((HoloSchematicVariantNavigationAccess) schematicView)
                 .tetraInsight$openVariantImprovements(parentPreview);
     }
 
-    private void tetraInsight$prepareWorkingStack(IModularItem item, ItemStack itemStack) {
+    @Unique
+    private void tetraInsight$openWithWorkingStack(IModularItem item, ItemStack itemStack,
+            String slot, UpgradeSchematic schematic) {
+        boolean previousOverride = tetraInsight$useWorkingStackOverride;
+        tetraInsight$useWorkingStackOverride = true;
+        try {
+            ((HoloCraftRootGui) (Object) this)
+                    .openFromWorkbench(item, itemStack, slot, schematic);
+        } finally {
+            tetraInsight$useWorkingStackOverride = previousOverride;
+        }
+    }
+
+    @Unique
+    private void tetraInsight$applyWorkingStack(IModularItem item, ItemStack itemStack) {
         String key = tetraInsight$findHolosphereKey(item, itemStack);
         if (key == null) {
             return;
         }
 
-        HolosphereCraftState.ItemState itemState = state.getItemState().get(key);
-        if (itemState != null) {
-            itemState.setWorkingStack(itemStack.copy());
+        if (tetraInsight$useWorkingStackOverride) {
+            HolosphereCraftState.ItemState itemState = state.getItemState().get(key);
+            if (itemState != null) {
+                itemState.setWorkingStack(tetraInsight$copyForPreview(itemStack));
+            }
+        } else {
+            tetraInsight$resetWorkingStack(key);
         }
     }
 
@@ -163,10 +184,11 @@ public abstract class HoloCraftRootGuiMixin
             return;
         }
 
-        state.getItemState().get(key).setWorkingStack(itemStack.copy());
+        tetraInsight$applyWorkingStack(item, itemStack);
         state.openFromWorkbench(key, itemStack, slot, schematic);
     }
 
+    @Unique
     private void tetraInsight$resetWorkingStack(String key) {
         HolosphereCraftState.ItemState itemState = state.getItemState().get(key);
         if (itemState == null) {
@@ -176,9 +198,20 @@ public abstract class HoloCraftRootGuiMixin
         ItemStack defaultStack = itemState.itemData().getDefaultStack();
         itemState.setWorkingStack(defaultStack == null
                 ? ItemStack.EMPTY
-                : defaultStack.copy());
+                : tetraInsight$copyForPreview(defaultStack));
     }
 
+    @Unique
+    private static ItemStack tetraInsight$copyForPreview(ItemStack source) {
+        ItemStack preview = source.copy();
+        CompoundTag tag = preview.getTag();
+        if (tag != null) {
+            tag.remove("id");
+        }
+        return preview;
+    }
+
+    @Unique
     private static String tetraInsight$findHolosphereKey(IModularItem item, ItemStack itemStack) {
         return HolosphereEntryStore.instance.getEntries().entrySet().stream()
                 .filter(entry -> entry.getValue().item.equals(item))

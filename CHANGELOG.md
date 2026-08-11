@@ -4,6 +4,8 @@
 
 - Reset Tetra 6.17 holosphere working stacks when leaving the reused screen or resuming normal item browsing.
 - Clear both selected and hovered material entries when closing the material browser dossier.
+- Keep the workbench "view details" shortcut on a clean holosphere base stack, preventing the last modified tool's integrity, tool level, and efficiency from leaking into every material preview.
+- Strip the root Tetra `id` from every holosphere preview copy so candidate outcomes use independent property and tool cache keys.
 - Keep fold-selection state safe when a group receives no selected entry.
 
 ## 0.1.4

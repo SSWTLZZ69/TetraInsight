@@ -1,6 +1,8 @@
 package io.github.createdelight.tetrainsight.client;
 
+import io.github.createdelight.tetrainsight.integration.tetra.effect.EffectApplicabilityResourceIndex;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 public final class TetraInsightClient {
@@ -12,8 +14,9 @@ public final class TetraInsightClient {
         MinecraftForge.EVENT_BUS.addListener(MaterialTooltipHandler::onTooltip);
         MinecraftForge.EVENT_BUS.addListener(MaterialDossierShortcut::onKeyPressed);
         MinecraftForge.EVENT_BUS.addListener(PaginationRuntimeProbe::onClientTick);
-        FMLJavaModLoadingContext.get().getModEventBus()
-                .addListener(MaterialDossierShortcut::registerKeyMapping);
-        FMLJavaModLoadingContext.get().getModEventBus().addListener(PaginationRuntimeProbe::onClientSetup);
+        IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
+        modBus.addListener(MaterialDossierShortcut::registerKeyMapping);
+        modBus.addListener(PaginationRuntimeProbe::onClientSetup);
+        modBus.addListener(EffectApplicabilityResourceIndex::register);
     }
 }

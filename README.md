@@ -17,6 +17,7 @@ Tetra Insight is a client-side Forge addon for Minecraft 1.20.1 that makes Tetra
 - Groups enchantment choices and exposes synergy bonuses and module aspects more clearly.
 - Handles large third-party schematic collections and skips unusable material choices.
 - Paginates oversized holosphere and workbench stat-bar collections before they overlap other UI.
+- Loads client resource JSON rules for third-party effect applicability without a Java integration.
 
 ## Requirements
 
@@ -26,6 +27,47 @@ Tetra Insight is a client-side Forge addon for Minecraft 1.20.1 that makes Tetra
 - mutil 6.3.0 or newer
 
 Tetra Insight is client-side. It does not need to be installed on a dedicated server.
+
+## Effect applicability resources
+
+Third-party effect applicability can be described by client resource JSON. Place one file per
+effect at:
+
+```text
+assets/<effect namespace>/tetra_insight/effect_applicability/<effect path>.json
+```
+
+For example, `more_mod_tetra:beheading` uses
+`assets/more_mod_tetra/tetra_insight/effect_applicability/beheading.json`:
+
+```json
+{
+  "replace": false,
+  "paths": [
+    {
+      "scopes": ["main_hand", "off_hand"],
+      "triggers": ["kill_entity"],
+      "stacking": "held_max"
+    }
+  ]
+}
+```
+
+`replace: false` merges the resource paths with built-in Tetra and optional integration paths.
+Set it to `true` only when the resource should completely replace built-in applicability.
+
+Supported scope values are the lowercase names from `EffectScope`, including `held_item`,
+`main_hand`, `off_hand`, `armor`, `helmet`, `curios`, `toolbelt`, `bow`, `crossbow`, `shield`,
+`tool`, `weapon`, `inventory` and `modular_item`. Trigger values likewise use lowercase
+`EffectTrigger` names, such as `attack`, `receive_hit`, `kill_entity`, `projectile`, `ability`
+and `wear_passive`; `death` and `heal` cover lifecycle consumers.
+
+Built-in stacking aliases are `item`, `current_item`, `inventory_max`, `armor_sum`,
+`armor_max`, `single_piece`, `held_max`, `held_sum`, `curios_sum`, `curios_max` and `unknown`.
+A full translation key can be used instead of a stacking alias. Manual paths do not need an
+`evidence` field; a successfully loaded file automatically uses the generic manual-resource
+source label. Resource reloads replace the complete manual-rule snapshot, so removed JSON files
+do not leave stale definitions behind.
 
 ## Installation
 

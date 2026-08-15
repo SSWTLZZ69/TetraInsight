@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6
+
+- Add native stat-bar effect applicability tooltips with runtime scope, trigger, stacking, and current-preview state for Tetra effects.
+- Preserve independent Tetra and optional Tetrawear applicability paths, including client resource JSON rules for third-party effects.
+- Replace manual effect applicability snapshots on resource reload so removed rules do not remain stale.
+- Ignore previewless material-only outcomes before Tetra reads their variant key, preventing multi-material improvement schematics from crashing while retaining their fixed consumable requirements.
+- Refresh the project icon, cover image, and effect-applicability documentation.
+
 ## 0.1.5
 
 - Reset Tetra 6.17 holosphere working stacks when leaving the reused screen or resuming normal item browsing.

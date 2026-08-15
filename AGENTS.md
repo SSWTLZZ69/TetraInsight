@@ -30,6 +30,11 @@ Tetra Insight is a client-side Minecraft 1.20.1 Forge addon for Tetra interface 
 
 Reuse Tetra/mutil GUI components, textures, spacing, colors, hover/selected/disabled states, and sounds wherever possible. New pagination, search, clipping, and expandable controls should be thin adaptations that retain Tetra's visual language, not a replacement theme.
 
+- Effect applicability belongs in native stat-bar tooltips: capture the current and preview stacks from `GuiStatBar.update` and append to `GuiStatBar.getTooltipLines` so workbench, holosphere, and dossier previews share one path.
+- Do not infer runtime applicability from an effect being present on an outcome stack. Map the actual Tetra consumer and item type; keep unknown third-party effects explicitly unconfirmed.
+- Preserve every runtime consumer as an independent applicability path. Merge Tetra and optional-wearable paths without overriding or combining their scope/trigger lists; the preview is active when any path matches.
+- Optional wearable integrations must stay client-only and dependency-free: gate them by loaded mod ID and inspect item inheritance by class name instead of importing optional classes.
+- Prefer client resource JSON for third-party applicability declarations; file presence is sufficient without an `evidence` field, and each resource reload must replace the complete manual-rule snapshot instead of appending to it.
 - Keep custom material-dossier chrome and text in a neutral black, white, and gray hierarchy. Do not add cyan, gold, or other category colors; retain color only where it comes from a reused native Tetra glyph or stat bar.
 - Use stable upstream holosphere category translations for material-usage tree roots: Tetra provides `tetra.holo.craft.modular_*`, and GeoTetraArmor provides `tetra.holo.craft.head/chest/legs/feet`. Do not use `IModularItem.getItemName` as a category label because it dynamically describes the assembled stack.
 - Workbench shortcuts that target the holosphere's pre-schematic module list must enter `HoloCraftRootGui.onSlotSelect`; passing a null schematic to `HoloGui.openSchematic` reaches `HoloSchematicGui.update` and crashes. After setting the screen and navigation state, call `HoloGui.onShow()` and let the craft root animate from its computed depth instead of opening individual child animations.

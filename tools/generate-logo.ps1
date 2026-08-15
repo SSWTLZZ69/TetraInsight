@@ -47,53 +47,66 @@ function Fill-Poly([string]$Hex, [int[][]]$Coordinates) {
     }
 }
 
-# Original 32x32 pixel-art emblem: a Tetra-family diamond plate containing
-# a monochrome inspection iris. All coordinates are integer pixels.
+function Draw-PixelLine(
+    [string]$Hex,
+    [int]$X1,
+    [int]$Y1,
+    [int]$X2,
+    [int]$Y2
+) {
+    $x = $X1
+    $y = $Y1
+    $dx = [Math]::Abs($X2 - $X1)
+    $sx = if ($X1 -lt $X2) { 1 } else { -1 }
+    $dy = -[Math]::Abs($Y2 - $Y1)
+    $sy = if ($Y1 -lt $Y2) { 1 } else { -1 }
+    $error = $dx + $dy
 
-# Deep silhouette. The palette deliberately mirrors Tetra-family addon marks:
-# pure black, pure white and one neutral 50% gray.
-Fill-Poly '#000000' @(@(16, 0), @(32, 16), @(16, 32), @(0, 16))
+    while ($true) {
+        Fill-Rect $Hex $x $y 1 1
+        if ($x -eq $X2 -and $y -eq $Y2) {
+            break
+        }
+        $twiceError = 2 * $error
+        if ($twiceError -ge $dy) {
+            $error += $dy
+            $x += $sx
+        }
+        if ($twiceError -le $dx) {
+            $error += $dx
+            $y += $sy
+        }
+    }
+}
 
-# Thin segmented schematic rim. White describes the lit upper facets while
-# gray is reserved for the lower shadow; the plate itself remains black.
-Fill-Poly '#ffffff' @(@(16, 1), @(31, 16), @(29, 18), @(14, 3))
-Fill-Poly '#ffffff' @(@(1, 16), @(16, 1), @(18, 3), @(3, 18))
-Fill-Poly '#808080' @(@(31, 16), @(16, 31), @(14, 29), @(29, 14))
-Fill-Poly '#808080' @(@(16, 31), @(1, 16), @(3, 14), @(18, 29))
-Fill-Poly '#000000' @(@(16, 4), @(28, 16), @(16, 28), @(4, 16))
+# Original 32x32 pixel rune. Tetra's own mark reads more like a sparse carved
+# totem than a conventional badge, so every structural stroke is exactly one
+# logical pixel wide. The diamond remains, but it is a broken inscription line
+# rather than a heavy frame.
+Draw-PixelLine '#ffffff' 7 14 14 7
+Draw-PixelLine '#ffffff' 18 7 25 14
+Draw-PixelLine '#808080' 25 18 18 25
+Draw-PixelLine '#ffffff' 14 25 7 18
 
-# Four Tetra-like connector tabs and their single-pixel signal lamps.
-Fill-Rect '#000000' 14 0 4 4
-Fill-Rect '#ffffff' 15 1 2 2
-Fill-Rect '#000000' 28 14 4 4
-Fill-Rect '#ffffff' 29 15 2 2
-Fill-Rect '#000000' 14 28 4 4
-Fill-Rect '#808080' 15 29 2 2
-Fill-Rect '#000000' 0 14 4 4
-Fill-Rect '#ffffff' 1 15 2 2
+# Detached axis marks give the diamond the modular, runic cadence of Tetra's
+# original symbol without thickening its outline.
+Fill-Rect '#ffffff' 16 2 1 1
+Draw-PixelLine '#ffffff' 16 4 16 5
+Fill-Rect '#ffffff' 29 16 1 1
+Draw-PixelLine '#ffffff' 27 16 28 16
+Fill-Rect '#808080' 16 29 1 1
+Draw-PixelLine '#808080' 16 27 16 28
+Fill-Rect '#ffffff' 2 16 1 1
+Draw-PixelLine '#ffffff' 4 16 5 16
 
-# White line-art inspection eye on the black plate.
-Fill-Poly '#ffffff' @(
-    @(6, 16), @(10, 12), @(15, 10), @(17, 10), @(22, 12), @(26, 16),
-    @(22, 20), @(17, 22), @(15, 22), @(10, 20))
-Fill-Poly '#000000' @(
-    @(9, 16), @(12, 14), @(16, 12), @(20, 14), @(23, 16),
-    @(20, 18), @(16, 20), @(12, 18))
-
-# Faceted lens, pupil and glint.
-Fill-Poly '#808080' @(@(16, 12), @(20, 16), @(16, 20), @(12, 16))
-Fill-Poly '#ffffff' @(@(16, 13), @(19, 16), @(16, 19), @(13, 16))
-Fill-Rect '#000000' 15 15 3 3
-Fill-Rect '#ffffff' 16 15 1 1
-
-# Compact analysis notches and the three grayscale material channels.
-Fill-Rect '#808080' 16 9 1 2
-Fill-Rect '#808080' 16 21 1 2
-Fill-Rect '#808080' 6 16 2 1
-Fill-Rect '#808080' 24 16 2 1
-Fill-Rect '#ffffff' 12 23 2 1
-Fill-Rect '#808080' 15 23 2 1
-Fill-Rect '#000000' 18 23 2 1
+# The center is one thin eye rune, not a filled eye or a second diamond.
+Draw-PixelLine '#ffffff' 10 16 14 13
+Draw-PixelLine '#ffffff' 14 13 18 13
+Draw-PixelLine '#ffffff' 18 13 22 16
+Draw-PixelLine '#808080' 10 18 14 21
+Draw-PixelLine '#808080' 14 21 18 21
+Draw-PixelLine '#808080' 18 21 22 18
+Fill-Rect '#ffffff' 16 16 1 2
 
 $graphics.Dispose()
 
@@ -107,11 +120,12 @@ function Export-NearestNeighbor([System.Drawing.Bitmap]$Source, [int]$Size, [str
     $output.SetResolution(96, 96)
     $canvas = [System.Drawing.Graphics]::FromImage($output)
     try {
-        $canvas.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceCopy
         $canvas.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::None
         $canvas.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
         $canvas.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::Half
-        $canvas.Clear([System.Drawing.Color]::Transparent)
+        $canvas.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceCopy
+        $canvas.Clear([System.Drawing.Color]::Black)
+        $canvas.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceOver
         $canvas.DrawImage(
             $Source,
             (New-Object System.Drawing.Rectangle(0, 0, $Size, $Size)),
@@ -127,16 +141,54 @@ function Export-NearestNeighbor([System.Drawing.Bitmap]$Source, [int]$Size, [str
     }
 }
 
+function Export-Cover([System.Drawing.Bitmap]$Source, [string]$Path) {
+    $width = 1920
+    $height = 1080
+    $logoSize = 320
+    $logoX = [int](($width - $logoSize) / 2)
+    $logoY = [int](($height - $logoSize) / 2)
+    $directory = Split-Path -Parent $Path
+    New-Item -ItemType Directory -Force -Path $directory | Out-Null
+    $output = New-Object System.Drawing.Bitmap(
+        $width,
+        $height,
+        [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $output.SetResolution(96, 96)
+    $canvas = [System.Drawing.Graphics]::FromImage($output)
+    try {
+        $canvas.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::None
+        $canvas.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
+        $canvas.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::Half
+        $canvas.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceCopy
+        $canvas.Clear([System.Drawing.Color]::Black)
+        $canvas.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceOver
+        $canvas.DrawImage(
+            $Source,
+            (New-Object System.Drawing.Rectangle($logoX, $logoY, $logoSize, $logoSize)),
+            0,
+            0,
+            $Source.Width,
+            $Source.Height,
+            [System.Drawing.GraphicsUnit]::Pixel)
+        $output.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+    } finally {
+        $canvas.Dispose()
+        $output.Dispose()
+    }
+}
+
 $basePath = Join-Path $ProjectRoot 'docs\assets\tetra-insight-logo-32.png'
 $curseForgePath = Join-Path $ProjectRoot 'docs\assets\tetra-insight-logo-512.png'
 $modIconPath = Join-Path $ProjectRoot 'src\main\resources\assets\tetra_insight\icon.png'
+$coverPath = Join-Path $ProjectRoot 'docs\assets\tetra-insight-cover-1920x1080.png'
 
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $basePath) | Out-Null
-$sprite.Save($basePath, [System.Drawing.Imaging.ImageFormat]::Png)
+Export-NearestNeighbor $sprite 32 $basePath
 Export-NearestNeighbor $sprite 128 $modIconPath
 Export-NearestNeighbor $sprite 512 $curseForgePath
+Export-Cover $sprite $coverPath
 $sprite.Dispose()
 
 Write-Output $basePath
 Write-Output $modIconPath
 Write-Output $curseForgePath
+Write-Output $coverPath

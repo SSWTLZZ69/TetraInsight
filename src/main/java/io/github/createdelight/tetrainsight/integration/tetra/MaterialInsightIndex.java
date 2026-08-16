@@ -87,12 +87,17 @@ public final class MaterialInsightIndex {
         if (itemId == null) {
             return List.of();
         }
-        String stackNbt = stack.hasTag() ? stack.getTag().toString() : "";
+        List<MaterialProfileSnapshot> candidates;
         synchronized (LOCK) {
-            return profilesByItem.getOrDefault(itemId.toString(), List.of()).stream()
-                    .filter(profile -> matchesSource(profile, itemId.toString(), stackNbt))
-                    .toList();
+            candidates = profilesByItem.getOrDefault(itemId.toString(), List.of());
         }
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+        String stackNbt = stack.hasTag() ? stack.getTag().toString() : "";
+        return candidates.stream()
+                .filter(profile -> matchesSource(profile, itemId.toString(), stackNbt))
+                .toList();
     }
 
     public static List<MaterialUsageSnapshot> findUsages(String materialKey) {

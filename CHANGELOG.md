@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7
+
+- Extract improvement preview composition into a shared composer so click, hover, and comparison paths follow the same rules.
+- Refresh material-dossier usage trees when resource reloads rebuild the material index.
+- Compare full material profile snapshots so updated material data refreshes an open dossier.
+- Navigate empty workbench slots through the holosphere item and slot selection path directly, avoiding the null-schematic crash route.
+
 ## 0.1.6
 
 - Add native stat-bar effect applicability tooltips with runtime scope, trigger, stacking, and current-preview state for Tetra effects.

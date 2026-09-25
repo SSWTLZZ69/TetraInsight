@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.function.Supplier;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -52,41 +54,38 @@ import se.mickelus.tetra.module.schematic.requirement.OrRequirement;
 
 public final class MaterialUsageHierarchyResolver {
     private static final Object LOCK = new Object();
-    private static Map<String, MaterialUsageTreeSnapshot> cache = Map.of();
-    private static Map<String, MaterialUsageTreeSnapshot> specialCache = Map.of();
+    private static final Map<String, MaterialUsageTreeSnapshot> cache = new HashMap<>();
+    private static final Map<String, MaterialUsageTreeSnapshot> specialCache = new HashMap<>();
+    private static long generation;
 
     private MaterialUsageHierarchyResolver() {
     }
 
     public static void clear() {
         synchronized (LOCK) {
-            cache = Map.of();
-            specialCache = Map.of();
+            cache.clear();
+            specialCache.clear();
+            generation++;
+        }
+    }
+
+    public static long generation() {
+        synchronized (LOCK) {
+            return generation;
         }
     }
 
     public static MaterialUsageTreeSnapshot resolve(MaterialProfileSnapshot profile) {
-        synchronized (LOCK) {
-            MaterialUsageTreeSnapshot cached = cache.get(profile.materialKey());
-            if (cached != null) {
-                return cached;
-            }
-        }
-
-        Set<String> usageKeys = MaterialInsightIndex.findUsages(profile.materialKey()).stream()
-                .map(MaterialUsageSnapshot::schematicKey)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        MaterialUsageTreeSnapshot resolved = build(
-                usageKeys,
-                profile.glyphTint(),
-                (schematic, preview) -> matchesProfile(
-                        schematic, preview, profile));
-        synchronized (LOCK) {
-            LinkedHashMap<String, MaterialUsageTreeSnapshot> next = new LinkedHashMap<>(cache);
-            next.put(profile.materialKey(), resolved);
-            cache = Map.copyOf(next);
-        }
-        return resolved;
+        return resolveCached(cache, profile.materialKey(), () -> {
+            Set<String> usageKeys = MaterialInsightIndex.findUsages(profile.materialKey()).stream()
+                    .map(MaterialUsageSnapshot::schematicKey)
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            return build(
+                    usageKeys,
+                    profile.glyphTint(),
+                    (schematic, preview) -> matchesProfile(
+                            schematic, preview, profile));
+        });
     }
 
     public static MaterialUsageTreeSnapshot resolveSpecial(ItemStack stack) {
@@ -96,25 +95,32 @@ public final class MaterialUsageHierarchyResolver {
         ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(stack.getItem());
         String cacheKey = (itemId != null ? itemId.toString() : stack.getDescriptionId())
                 + "|" + (stack.hasTag() ? stack.getTag() : "");
+        return resolveCached(specialCache, cacheKey, () -> {
+            Set<String> usageKeys = new LinkedHashSet<>(
+                    TetraDataProbe.findSpecialMaterialSchematicKeys(stack));
+            return build(
+                    usageKeys,
+                    null,
+                    (schematic, preview) -> matchesStack(preview, stack));
+        });
+    }
+
+    private static MaterialUsageTreeSnapshot resolveCached(
+            Map<String, MaterialUsageTreeSnapshot> cache,
+            String key,
+            Supplier<MaterialUsageTreeSnapshot> resolver
+    ) {
         synchronized (LOCK) {
-            MaterialUsageTreeSnapshot cached = specialCache.get(cacheKey);
+            MaterialUsageTreeSnapshot cached = cache.get(key);
             if (cached != null) {
                 return cached;
             }
         }
-        Set<String> usageKeys = new LinkedHashSet<>(
-                TetraDataProbe.findSpecialMaterialSchematicKeys(stack));
-        MaterialUsageTreeSnapshot resolved = build(
-                usageKeys,
-                null,
-                (schematic, preview) -> matchesStack(preview, stack));
+
+        MaterialUsageTreeSnapshot resolved = resolver.get();
         synchronized (LOCK) {
-            LinkedHashMap<String, MaterialUsageTreeSnapshot> next =
-                    new LinkedHashMap<>(specialCache);
-            next.put(cacheKey, resolved);
-            specialCache = Map.copyOf(next);
+            return cache.computeIfAbsent(key, ignored -> resolved);
         }
-        return resolved;
     }
 
     private static MaterialUsageTreeSnapshot build(

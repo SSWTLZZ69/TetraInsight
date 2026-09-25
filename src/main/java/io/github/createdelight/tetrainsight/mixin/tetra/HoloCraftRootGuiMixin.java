@@ -48,21 +48,21 @@ public abstract class HoloCraftRootGuiMixin
     @Final
     private HolosphereCraftState state;
 
-    @Unique
-    private boolean tetraInsight$useWorkingStackOverride;
-
-    @Inject(method = "openFromWorkbench", at = @At("RETURN"), remap = false)
-    private void tetraInsight$restoreSlotNavigation(IModularItem item, ItemStack itemStack,
-            String slot, UpgradeSchematic schematic, CallbackInfo ci) {
-        if (slot != null && schematic == null) {
-            tetraInsight$openFromWorkbenchState(item, itemStack, slot, null);
-        }
+    @Shadow
+    private void onSlotSelect(String slot) {
     }
+
+    @Shadow
+    private void onItemSelect(String key) {
+    }
+
+    @Unique
+    private boolean tetraInsight$preserveNavigationStack;
 
     @Inject(method = "openFromWorkbench", at = @At("HEAD"), remap = false)
     private void tetraInsight$forwardHoningTarget(IModularItem item, ItemStack itemStack,
             String slot, UpgradeSchematic schematic, CallbackInfo ci) {
-        tetraInsight$applyWorkingStack(item, itemStack);
+        tetraInsight$prepareWorkingStack(item, itemStack);
         ((HoloHoningTargetAccess) schematicView).tetraInsight$setHoningTarget(itemStack);
     }
 
@@ -82,8 +82,15 @@ public abstract class HoloCraftRootGuiMixin
             ItemStack itemStack,
             String slot
     ) {
-        ((HoloCraftRootGui) (Object) this)
-                .openFromWorkbench(item, itemStack, slot, null);
+        String key = tetraInsight$findHolosphereKey(item, itemStack);
+        if (key == null || state.getItemState().get(key) == null) {
+            state.onItemSelect(null);
+            return;
+        }
+
+        tetraInsight$prepareWorkingStack(item, itemStack);
+        onItemSelect(key);
+        onSlotSelect(slot);
     }
 
     @Override
@@ -149,43 +156,36 @@ public abstract class HoloCraftRootGuiMixin
     @Unique
     private void tetraInsight$openWithWorkingStack(IModularItem item, ItemStack itemStack,
             String slot, UpgradeSchematic schematic) {
-        boolean previousOverride = tetraInsight$useWorkingStackOverride;
-        tetraInsight$useWorkingStackOverride = true;
+        boolean previousValue = tetraInsight$preserveNavigationStack;
+        tetraInsight$preserveNavigationStack = true;
         try {
             ((HoloCraftRootGui) (Object) this)
                     .openFromWorkbench(item, itemStack, slot, schematic);
         } finally {
-            tetraInsight$useWorkingStackOverride = previousOverride;
+            tetraInsight$preserveNavigationStack = previousValue;
         }
     }
 
     @Unique
-    private void tetraInsight$applyWorkingStack(IModularItem item, ItemStack itemStack) {
+    private void tetraInsight$prepareWorkingStack(IModularItem item, ItemStack itemStack) {
         String key = tetraInsight$findHolosphereKey(item, itemStack);
         if (key == null) {
             return;
         }
 
-        if (tetraInsight$useWorkingStackOverride) {
-            HolosphereCraftState.ItemState itemState = state.getItemState().get(key);
-            if (itemState != null) {
-                itemState.setWorkingStack(tetraInsight$copyForPreview(itemStack));
-            }
+        if (tetraInsight$preserveNavigationStack) {
+            tetraInsight$setWorkingStack(key, itemStack);
         } else {
             tetraInsight$resetWorkingStack(key);
         }
     }
 
-    private void tetraInsight$openFromWorkbenchState(IModularItem item, ItemStack itemStack,
-            String slot, UpgradeSchematic schematic) {
-        String key = tetraInsight$findHolosphereKey(item, itemStack);
-        if (key == null || state.getItemState().get(key) == null) {
-            state.onItemSelect(null);
-            return;
+    @Unique
+    private void tetraInsight$setWorkingStack(String key, ItemStack stack) {
+        HolosphereCraftState.ItemState itemState = state.getItemState().get(key);
+        if (itemState != null) {
+            itemState.setWorkingStack(tetraInsight$copyForPreview(stack));
         }
-
-        tetraInsight$applyWorkingStack(item, itemStack);
-        state.openFromWorkbench(key, itemStack, slot, schematic);
     }
 
     @Unique

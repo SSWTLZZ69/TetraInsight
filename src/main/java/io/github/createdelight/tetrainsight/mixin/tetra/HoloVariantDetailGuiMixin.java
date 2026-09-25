@@ -2,13 +2,13 @@ package io.github.createdelight.tetrainsight.mixin.tetra;
 
 import io.github.createdelight.tetrainsight.TetraInsight;
 import io.github.createdelight.tetrainsight.client.HoloDisplaySchematic;
-import io.github.createdelight.tetrainsight.client.HoloDisplaySchematicAccess;
 import io.github.createdelight.tetrainsight.client.HoloHoningOutcomeStack;
 import io.github.createdelight.tetrainsight.client.HoloHoningTargetAccess;
 import io.github.createdelight.tetrainsight.client.HoloImprovementCountAccess;
 import io.github.createdelight.tetrainsight.client.HoloStatsComparisonAccess;
 import io.github.createdelight.tetrainsight.client.ImprovementComparisonMode;
 import io.github.createdelight.tetrainsight.client.ImprovementPreviewContext;
+import io.github.createdelight.tetrainsight.client.ImprovementPreviewComposer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
@@ -96,9 +96,6 @@ public abstract class HoloVariantDetailGuiMixin
     @Unique
     private final List<HoloHoningOutcomeStack> tetraInsight$selectedHoning = new ArrayList<>();
 
-    @Unique
-    private static final String tetraInsight$BOOK_ENCHANT = "book_enchant";
-
     @Inject(method = "updateVariant", at = @At("HEAD"), remap = false)
     private void tetraInsight$resetImprovementCount(OutcomePreview variant, OutcomePreview hovered,
             String slot, CallbackInfo ci) {
@@ -106,15 +103,16 @@ public abstract class HoloVariantDetailGuiMixin
         tetraInsight$displaySchematics = new UpgradeSchematic[0];
         tetraInsight$displayStack = ItemStack.EMPTY;
         tetraInsight$displaySlot = "";
-        tetraInsight$selectedHoning.clear();
-        hoveredImprovement = null;
-        ImprovementPreviewContext.clear();
-        ((HoloStatsComparisonAccess) stats).tetraInsight$setComparisonMode(
-                ImprovementComparisonMode.NONE);
+        tetraInsight$clearSelectionState();
     }
 
     @Inject(method = "hideImprovements", at = @At("HEAD"), remap = false)
     private void tetraInsight$clearTransientImprovementState(CallbackInfo ci) {
+        tetraInsight$clearSelectionState();
+    }
+
+    @Unique
+    private void tetraInsight$clearSelectionState() {
         tetraInsight$selectedHoning.clear();
         hoveredImprovement = null;
         ImprovementPreviewContext.clear();
@@ -130,7 +128,7 @@ public abstract class HoloVariantDetailGuiMixin
                 tetraInsight$selectedHoning.remove(selectedIndex);
             } else {
                 tetraInsight$selectedHoning.removeIf(selectedHoning ->
-                        tetraInsight$sameSelectionFamily(selectedHoning, honing));
+                        ImprovementPreviewComposer.sameSelectionFamily(selectedHoning, honing));
                 tetraInsight$selectedHoning.add(honing);
                 tetraInsight$selectedHoning.sort(Comparator
                         .comparingInt((HoloHoningOutcomeStack outcome) ->
@@ -143,7 +141,7 @@ public abstract class HoloVariantDetailGuiMixin
                 selectedOutcomes.remove(selectedIndex);
             } else {
                 selectedOutcomes.removeIf(existing ->
-                        tetraInsight$sameSelectionFamily(existing, selected));
+                        ImprovementPreviewComposer.sameSelectionFamily(existing, selected));
                 selectedOutcomes.add(selected);
             }
         }
@@ -155,99 +153,28 @@ public abstract class HoloVariantDetailGuiMixin
 
     @Unique
     private void tetraInsight$rebuildCurrentOutcome() {
-        List<OutcomeStack> selections = new ArrayList<>(selectedOutcomes);
-        selections.addAll(tetraInsight$selectedHoning);
-        currentOutcome = tetraInsight$composeOutcome(selections);
-    }
-
-    @Unique
-    private OutcomePreview tetraInsight$composeOutcome(
-            List<? extends OutcomeStack> selections) {
-        OutcomePreview outcome = variantOutcome.clone();
-        List<OutcomeStack> nonEnchantments = selections.stream()
-                .filter(selection -> !tetraInsight$isBookEnchant(selection))
-                .map(selection -> (OutcomeStack) selection)
-                .toList();
-        List<OutcomeStack> enchantments = selections.stream()
-                .filter(HoloVariantDetailGuiMixin::tetraInsight$isBookEnchant)
-                .map(selection -> (OutcomeStack) selection)
-                .toList();
-        outcome = tetraInsight$applySelections(nonEnchantments, outcome);
-        return tetraInsight$applySelections(enchantments, outcome);
-    }
-
-    @Unique
-    private OutcomePreview tetraInsight$applySelections(
-            List<? extends OutcomeStack> selections, OutcomePreview base) {
-        OutcomePreview outcome = base;
-        List<OutcomeStack> pending = new ArrayList<>(selections);
-        boolean progressed;
-        do {
-            progressed = false;
-            for (int index = 0; index < pending.size(); index++) {
-                OutcomePreview resolved = tetraInsight$resolveOutcome(
-                        pending.get(index), outcome);
-                if (resolved == null) {
-                    continue;
-                }
-                outcome = resolved;
-                pending.remove(index--);
-                progressed = true;
-            }
-        } while (progressed && !pending.isEmpty());
-
-        if (!pending.isEmpty()) {
-            TetraInsight.LOGGER.debug(
-                    "Could not recompose {} improvement selections on the current preview",
-                    pending.size());
-        }
-        return outcome;
-    }
-
-    @Unique
-    private static boolean tetraInsight$isBookEnchant(OutcomeStack selection) {
-        OutcomeStackAccessor access = (OutcomeStackAccessor) selection;
-        return tetraInsight$BOOK_ENCHANT.equals(
-                tetraInsight$unwrapDisplaySchematic(
-                        access.tetraInsight$getSchematic()).getKey());
-    }
-
-    @Unique
-    private OutcomePreview tetraInsight$resolveOutcome(
-            OutcomeStack selected, OutcomePreview base) {
-        OutcomeStackAccessor access = (OutcomeStackAccessor) selected;
-        OutcomePreview requested = access.tetraInsight$getPreview();
-        UpgradeSchematic schematic = tetraInsight$unwrapDisplaySchematic(
-                access.tetraInsight$getSchematic());
-        for (OutcomePreview candidate : schematic.getPreviews(base.itemStack, slot)) {
-            if (tetraInsight$matchesSelection(candidate, requested)) {
-                return candidate;
-            }
-        }
-        return null;
-    }
-
-    @Unique
-    private static UpgradeSchematic tetraInsight$unwrapDisplaySchematic(
-            UpgradeSchematic schematic) {
-        if (schematic instanceof HoloDisplaySchematicAccess display) {
-            return display.tetraInsight$delegate();
-        }
-        return schematic;
+        currentOutcome = ImprovementPreviewComposer.compose(
+                variantOutcome,
+                slot,
+                ImprovementPreviewComposer.combineSelections(
+                        selectedOutcomes,
+                        tetraInsight$selectedHoning));
     }
 
     @Unique
     private void tetraInsight$refreshCombinedSelection() {
-        List<OutcomeStack> displaySelection = new ArrayList<>(selectedOutcomes);
-        displaySelection.addAll(tetraInsight$selectedHoning);
-        improvements.updateSelection(currentOutcome.itemStack, displaySelection);
+        improvements.updateSelection(
+                currentOutcome.itemStack,
+                ImprovementPreviewComposer.combineSelections(
+                        selectedOutcomes,
+                        tetraInsight$selectedHoning));
         tetraInsight$showSelectedComparison();
     }
 
     @Unique
     private int tetraInsight$findOrdinarySelection(OutcomeStack candidate) {
         for (int index = 0; index < selectedOutcomes.size(); index++) {
-            if (tetraInsight$sameSelection(selectedOutcomes.get(index), candidate)) {
+            if (ImprovementPreviewComposer.sameSelection(selectedOutcomes.get(index), candidate)) {
                 return index;
             }
         }
@@ -258,7 +185,7 @@ public abstract class HoloVariantDetailGuiMixin
     private int tetraInsight$findHoningSelection(HoloHoningOutcomeStack candidate) {
         for (int index = 0; index < tetraInsight$selectedHoning.size(); index++) {
             HoloHoningOutcomeStack selected = tetraInsight$selectedHoning.get(index);
-            if (tetraInsight$sameSelection(selected, candidate)) {
+            if (ImprovementPreviewComposer.sameSelection(selected, candidate)) {
                 return index;
             }
         }
@@ -278,15 +205,14 @@ public abstract class HoloVariantDetailGuiMixin
         }
 
         OutcomeStack hoverSelection = new OutcomeStack(schematic, hovered);
-        List<OutcomeStack> previewSelections = new ArrayList<>(selectedOutcomes);
-        previewSelections.addAll(tetraInsight$selectedHoning);
+        List<OutcomeStack> previewSelections = ImprovementPreviewComposer.combineSelections(
+                selectedOutcomes,
+                tetraInsight$selectedHoning);
         previewSelections.removeIf(selected ->
-                tetraInsight$sameSelectionFamily(selected, hoverSelection));
+                ImprovementPreviewComposer.sameSelectionFamily(selected, hoverSelection));
         previewSelections.add(hoverSelection);
-        OutcomePreview resolved = tetraInsight$composeOutcome(previewSelections);
-        if (resolved == null) {
-            return;
-        }
+        OutcomePreview resolved = ImprovementPreviewComposer.compose(variantOutcome, slot,
+                previewSelections);
 
         stats.update(
                 currentOutcome.itemStack,
@@ -307,7 +233,7 @@ public abstract class HoloVariantDetailGuiMixin
     private void tetraInsight$restoreSelectedComparison(
             OutcomePreview hovered, CallbackInfo ci) {
         if (hoveredImprovement == null
-                || !tetraInsight$matchesSelection(hovered, hoveredImprovement)) {
+                || !ImprovementPreviewComposer.matchesSelection(hovered, hoveredImprovement)) {
             return;
         }
         tetraInsight$showSelectedComparison();
@@ -320,7 +246,7 @@ public abstract class HoloVariantDetailGuiMixin
         for (UpgradeSchematic schematic : tetraInsight$displaySchematics) {
             for (OutcomePreview candidate : schematic.getPreviews(
                     variantOutcome.itemStack, slot)) {
-                if (tetraInsight$matchesSelection(candidate, preview)) {
+                if (ImprovementPreviewComposer.matchesSelection(candidate, preview)) {
                     return schematic;
                 }
             }
@@ -349,73 +275,6 @@ public abstract class HoloVariantDetailGuiMixin
     @Unique
     private boolean tetraInsight$hasSelections() {
         return !selectedOutcomes.isEmpty() || !tetraInsight$selectedHoning.isEmpty();
-    }
-
-    @Unique
-    private static boolean tetraInsight$sameSelection(
-            OutcomeStack left, OutcomeStack right) {
-        OutcomeStackAccessor leftAccess = (OutcomeStackAccessor) left;
-        OutcomeStackAccessor rightAccess = (OutcomeStackAccessor) right;
-        return leftAccess.tetraInsight$getSchematic().getKey().equals(
-                        rightAccess.tetraInsight$getSchematic().getKey())
-                && tetraInsight$matchesSelection(
-                        leftAccess.tetraInsight$getPreview(),
-                        rightAccess.tetraInsight$getPreview());
-    }
-
-    @Unique
-    private static boolean tetraInsight$sameSelectionFamily(
-            OutcomeStack left, OutcomeStack right) {
-        OutcomeStackAccessor leftAccess = (OutcomeStackAccessor) left;
-        OutcomeStackAccessor rightAccess = (OutcomeStackAccessor) right;
-        if (left instanceof HoloHoningOutcomeStack leftChain
-                && right instanceof HoloHoningOutcomeStack rightChain
-                && !leftChain.chainKey().isBlank()
-                && leftChain.chainKey().equals(rightChain.chainKey())) {
-            return true;
-        }
-        if (left instanceof HoloHoningOutcomeStack leftChain
-                && leftChain.chainKey().equals(
-                        rightAccess.tetraInsight$getPreview().variantKey)) {
-            return true;
-        }
-        if (right instanceof HoloHoningOutcomeStack rightChain
-                && rightChain.chainKey().equals(
-                        leftAccess.tetraInsight$getPreview().variantKey)) {
-            return true;
-        }
-        return leftAccess.tetraInsight$getSchematic().getKey().equals(
-                        rightAccess.tetraInsight$getSchematic().getKey())
-                && java.util.Objects.equals(
-                        leftAccess.tetraInsight$getPreview().variantKey,
-                        rightAccess.tetraInsight$getPreview().variantKey);
-    }
-
-    @Unique
-    private static boolean tetraInsight$matchesSelection(
-            OutcomePreview candidate, OutcomePreview requested) {
-        if (!java.util.Objects.equals(candidate.variantKey, requested.variantKey)
-                || candidate.level != requested.level) {
-            return false;
-        }
-        ItemStack[] candidateMaterials = candidate.materials != null
-                ? candidate.materials
-                : new ItemStack[0];
-        ItemStack[] requestedMaterials = requested.materials != null
-                ? requested.materials
-                : new ItemStack[0];
-        if (candidateMaterials.length != requestedMaterials.length) {
-            return false;
-        }
-        for (int index = 0; index < candidateMaterials.length; index++) {
-            if (!ItemStack.isSameItemSameTags(
-                        candidateMaterials[index], requestedMaterials[index])
-                    || candidateMaterials[index].getCount()
-                            != requestedMaterials[index].getCount()) {
-                return false;
-            }
-        }
-        return true;
     }
 
     @Redirect(

@@ -3,6 +3,8 @@ package io.github.createdelight.tetrainsight.mixin.tetra;
 import io.github.createdelight.tetrainsight.TetraInsight;
 import io.github.createdelight.tetrainsight.client.HoloDisplaySchematic;
 import io.github.createdelight.tetrainsight.client.HoloHoningOutcomeStack;
+import io.github.createdelight.tetrainsight.client.HoloImprovementDetailAccess;
+import io.github.createdelight.tetrainsight.client.HoloImprovementOverviewAccess;
 import io.github.createdelight.tetrainsight.client.HoloHoningTargetAccess;
 import io.github.createdelight.tetrainsight.client.HoloImprovementCountAccess;
 import io.github.createdelight.tetrainsight.client.HoloStatsComparisonAccess;
@@ -50,7 +52,8 @@ import java.util.Set;
 
 @Mixin(value = HoloVariantDetailGui.class, remap = false)
 public abstract class HoloVariantDetailGuiMixin
-        implements HoloImprovementCountAccess, HoloHoningTargetAccess {
+        implements HoloImprovementCountAccess, HoloHoningTargetAccess,
+        HoloImprovementDetailAccess {
     @Shadow
     @Final
     private HoloImprovementListGui improvements;
@@ -488,6 +491,13 @@ public abstract class HoloVariantDetailGuiMixin
         if (schematic.getNumMaterialSlots() <= 0 || !(schematic instanceof ConfigSchematic)) {
             return true;
         }
+        // Enchantment schematics consume an enchanted book as a fixed
+        // ingredient; they never have extract candidates.
+        if (io.github.createdelight.tetrainsight.client.TetraInsightConfig
+                        .enchantmentImprovements.get()
+                && "book_enchant".equals(schematic.getKey())) {
+            return true;
+        }
         return io.github.createdelight.tetrainsight.integration.tetra.TetraDataProbe
                 .findSchematic(schematic.getKey())
                 .map(snapshot -> snapshot.candidateCount() > 0)
@@ -664,5 +674,12 @@ public abstract class HoloVariantDetailGuiMixin
     @Override
     public int tetraInsight$improvementCount() {
         return tetraInsight$improvementCount;
+    }
+
+    @Override
+    public void tetraInsight$openImprovementByMaterial(String materialKey,
+            ItemStack materialStack) {
+        ((HoloImprovementOverviewAccess) improvements)
+                .tetraInsight$openDetailForMaterial(materialKey, materialStack);
     }
 }

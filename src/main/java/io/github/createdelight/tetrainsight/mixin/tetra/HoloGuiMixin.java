@@ -77,11 +77,14 @@ public abstract class HoloGuiMixin
             IModularItem item,
             ItemStack itemStack,
             String slot,
-            UpgradeSchematic schematic
+            UpgradeSchematic schematic,
+            String materialKey,
+            ItemStack materialStack
     ) {
         changePage(HoloPage.craft);
         ((HoloUsageNavigationAccess) pages[HoloPage.craft.ordinal()])
-                .tetraInsight$navigateSchematic(item, itemStack, slot, schematic);
+                .tetraInsight$navigateSchematic(item, itemStack, slot,
+                        schematic, materialKey, materialStack);
     }
 
     @Override
@@ -90,12 +93,15 @@ public abstract class HoloGuiMixin
             ItemStack itemStack,
             String slot,
             UpgradeSchematic parentSchematic,
-            OutcomePreview parentPreview
+            OutcomePreview parentPreview,
+            String materialKey,
+            ItemStack materialStack
     ) {
         changePage(HoloPage.craft);
         ((HoloUsageNavigationAccess) pages[HoloPage.craft.ordinal()])
                 .tetraInsight$navigateImprovement(
-                        item, itemStack, slot, parentSchematic, parentPreview);
+                        item, itemStack, slot, parentSchematic, parentPreview,
+                        materialKey, materialStack);
     }
 
     @Override

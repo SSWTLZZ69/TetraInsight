@@ -84,7 +84,9 @@ public final class MaterialUsageHierarchyResolver {
                     usageKeys,
                     profile.glyphTint(),
                     (schematic, preview) -> matchesProfile(
-                            schematic, preview, profile));
+                            schematic, preview, profile),
+                    profile.materialKey(),
+                    ItemStack.EMPTY);
         });
     }
 
@@ -101,7 +103,9 @@ public final class MaterialUsageHierarchyResolver {
             return build(
                     usageKeys,
                     null,
-                    (schematic, preview) -> matchesStack(preview, stack));
+                    (schematic, preview) -> matchesStack(preview, stack),
+                    "",
+                    stack);
         });
     }
 
@@ -126,7 +130,9 @@ public final class MaterialUsageHierarchyResolver {
     private static MaterialUsageTreeSnapshot build(
             Set<String> usageKeys,
             Integer glyphTint,
-            BiPredicate<UpgradeSchematic, OutcomePreview> materialMatcher
+            BiPredicate<UpgradeSchematic, OutcomePreview> materialMatcher,
+            String materialKey,
+            ItemStack materialStack
     ) {
         if (usageKeys.isEmpty()) {
             return new MaterialUsageTreeSnapshot(List.of());
@@ -140,7 +146,9 @@ public final class MaterialUsageHierarchyResolver {
                         glyphTint,
                         materialMatcher,
                         usageKeys,
-                        targets))
+                        targets,
+                        materialKey,
+                        materialStack))
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(MaterialItemUsageSnapshot::name))
                 .toList();
@@ -152,7 +160,9 @@ public final class MaterialUsageHierarchyResolver {
             Integer glyphTint,
             BiPredicate<UpgradeSchematic, OutcomePreview> materialMatcher,
             Set<String> usageKeys,
-            Map<String, UpgradeSchematic> targets
+            Map<String, UpgradeSchematic> targets,
+            String materialKey,
+            ItemStack materialStack
     ) {
         ItemStack baseStack = modularItem.getDefaultStack();
         if (baseStack == null || baseStack.isEmpty()) {
@@ -201,7 +211,9 @@ public final class MaterialUsageHierarchyResolver {
                                             resolved.parent().itemStack,
                                             slot,
                                             target.getKey(),
-                                            root.getKey()),
+                                            root.getKey(),
+                                            materialKey,
+                                            materialStack),
                                     new MaterialStatPreviewSnapshot(
                                             resolved.parent().itemStack,
                                             resolved.preview().itemStack))));
@@ -217,7 +229,8 @@ public final class MaterialUsageHierarchyResolver {
                         MaterialUsageGlyphSnapshot.from(
                                 root.getGlyph(), direct ? glyphTint : null),
                         MaterialUsageNavigationSnapshot.schematic(
-                                baseStack, slot, root.getKey()),
+                                baseStack, slot, root.getKey(),
+                                materialKey, materialStack),
                         directPreview != null
                                 ? new MaterialStatPreviewSnapshot(
                                         baseStack, directPreview.itemStack)

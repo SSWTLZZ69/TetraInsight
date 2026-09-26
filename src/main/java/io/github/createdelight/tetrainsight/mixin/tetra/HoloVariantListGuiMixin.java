@@ -1,6 +1,7 @@
 package io.github.createdelight.tetrainsight.mixin.tetra;
 
 import io.github.createdelight.tetrainsight.client.HoloVariantGroupFoldAccess;
+import io.github.createdelight.tetrainsight.client.TetraInsightConfig;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -37,10 +38,15 @@ public abstract class HoloVariantListGuiMixin {
     @Unique
     private void tetraInsight$toggleGroup(HoloVariantGroupFoldAccess target) {
         boolean expandTarget = !target.tetraInsight$isExpanded();
+        boolean singleExpansion =
+                TetraInsightConfig.materialSingleExpansion.get();
         for (GuiElement child : groups.getChildren()) {
             if (child instanceof HoloVariantGroupFoldAccess group) {
                 group.tetraInsight$setExpanded(
-                        expandTarget && group == target);
+                        singleExpansion
+                                ? expandTarget && group == target
+                                : group == target ? expandTarget
+                                        : group.tetraInsight$isExpanded());
             }
         }
         tetraInsight$refreshGroupLayout();

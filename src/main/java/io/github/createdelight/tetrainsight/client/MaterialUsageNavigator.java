@@ -41,7 +41,9 @@ public final class MaterialUsageNavigator {
                     baseStack,
                     navigation.slot(),
                     parent,
-                    parentPreview);
+                    parentPreview,
+                    navigation.materialKey(),
+                    navigation.materialStack());
         } else {
             UpgradeSchematic schematic = SchematicRegistry.getSchematic(
                     navigation.schematicKey());
@@ -52,7 +54,9 @@ public final class MaterialUsageNavigator {
                     modularItem,
                     stack,
                     navigation.slot(),
-                    schematic);
+                    schematic,
+                    navigation.materialKey(),
+                    navigation.materialStack());
         }
         holoGui.onShow();
         return Minecraft.getInstance().screen == holoGui;

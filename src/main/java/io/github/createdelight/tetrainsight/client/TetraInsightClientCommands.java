@@ -11,6 +11,8 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 
+import java.util.List;
+
 public final class TetraInsightClientCommands {
     private TetraInsightClientCommands() {
     }
@@ -23,6 +25,11 @@ public final class TetraInsightClientCommands {
                 .then(Commands.literal("candidates")
                         .then(Commands.argument("query", StringArgumentType.greedyString())
                                 .executes(context -> showCandidates(
+                                        context.getSource(),
+                                        StringArgumentType.getString(context, "query")))))
+                .then(Commands.literal("scaling")
+                        .then(Commands.argument("query", StringArgumentType.greedyString())
+                                .executes(context -> showScaling(
                                         context.getSource(),
                                         StringArgumentType.getString(context, "query")))));
 
@@ -118,5 +125,44 @@ public final class TetraInsightClientCommands {
 
     private static String format(Float value) {
         return value == null ? "-" : String.format(java.util.Locale.ROOT, "%.2f", value);
+    }
+
+    /**
+     * Dumps the material-scaling data feeding the contextual sort options for a
+     * schematic, so broken modules can be diagnosed in-game:
+     * whether the schematic was captured, whether it links to extract
+     * definitions, and which sorter inputs that produces.
+     */
+    private static int showScaling(net.minecraft.commands.CommandSourceStack source, String query) {
+        TetraProbeSnapshot snapshot = TetraDataProbe.snapshot();
+        List<MaterialSchematicSnapshot> matches = snapshot.materialSchematics().stream()
+                .filter(value -> value.schematicKey().contains(query))
+                .toList();
+
+        if (matches.isEmpty()) {
+            // also try the captured-alias view used by the sort button
+            if (TetraDataProbe.findSchematic(query).isEmpty()) {
+                source.sendFailure(Component.literal(
+                        "No material schematic matched: " + query));
+                return 0;
+            }
+            matches = List.of(TetraDataProbe.findSchematic(query).get());
+        }
+
+        for (MaterialSchematicSnapshot schematic : matches) {
+            var linked = snapshot.linkedDefinitions(schematic);
+            var scaling = TetraDataProbe.findActualMaterialScaling(schematic.schematicKey());
+            var expected = io.github.createdelight.tetrainsight.client.ContextualSorterFactory
+                    .contextualPreviewNames(scaling);
+            source.sendSuccess(() -> Component.literal(schematic.schematicKey()
+                    + " | outcomes=" + schematic.materialOutcomeCount()
+                    + " authorTranslation=" + schematic.hasAuthorTranslation()
+                    + " variantPrefixes=" + schematic.moduleVariantPrefixes()
+                    + " improvementPrefixes=" + schematic.improvementPrefixes()
+                    + " | linked=" + linked.size()
+                    + " scaling=" + scaling.size()
+                    + " sorterInputs=" + expected).withStyle(ChatFormatting.AQUA), false);
+        }
+        return matches.size();
     }
 }

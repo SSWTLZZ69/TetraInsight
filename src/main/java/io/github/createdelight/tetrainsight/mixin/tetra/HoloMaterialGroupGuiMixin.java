@@ -28,6 +28,8 @@ public abstract class HoloMaterialGroupGuiMixin
     @Final
     private KeyframeAnimation[] itemAnimations;
 
+    private List<MaterialData> tetraInsight$materials = List.of();
+
     private HoloGroupFoldController<MaterialData> tetraInsight$fold;
 
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
@@ -41,6 +43,7 @@ public abstract class HoloMaterialGroupGuiMixin
             Consumer<MaterialData> onBlur,
             Consumer<MaterialData> onSelect,
             CallbackInfo ci) {
+        tetraInsight$materials = List.copyOf(materials);
         tetraInsight$fold = new HoloGroupFoldController<>(
                 (GuiElement) (Object) this,
                 materialsContainer,
@@ -83,5 +86,17 @@ public abstract class HoloMaterialGroupGuiMixin
         if (tetraInsight$fold != null) {
             tetraInsight$fold.setExpanded(expanded);
         }
+    }
+
+    @Override
+    public int tetraInsight$applyView(
+            java.util.function.Predicate<MaterialData> filter,
+            java.util.Comparator<MaterialData> sorter) {
+        if (tetraInsight$fold != null) {
+            return tetraInsight$fold.applyView(filter, sorter);
+        }
+        return (int) tetraInsight$materials.stream()
+                .filter(material -> filter == null || filter.test(material))
+                .count();
     }
 }

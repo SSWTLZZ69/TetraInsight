@@ -3,6 +3,7 @@ package io.github.createdelight.tetrainsight.mixin.tetra;
 import io.github.createdelight.tetrainsight.client.HoloSlotNavigationAccess;
 import io.github.createdelight.tetrainsight.client.WorkbenchEmptySchematicHoloAccess;
 import io.github.createdelight.tetrainsight.client.WorkbenchHoloSlotButtonGui;
+import io.github.createdelight.tetrainsight.client.WorkbenchSchematicListContext;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -77,6 +78,8 @@ public abstract class GuiSchematicListMixin implements WorkbenchEmptySchematicHo
     ) {
         tetraInsight$emptySchematics = schematics.length == 0;
         tetraInsight$updateHoloButton();
+        WorkbenchSchematicListContext.set(
+                tetraInsight$itemStack, tetraInsight$slot);
     }
 
     @Override

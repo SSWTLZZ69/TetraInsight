@@ -5,9 +5,12 @@ import se.mickelus.mutil.gui.GuiElement;
 import se.mickelus.mutil.gui.GuiStringSmall;
 import se.mickelus.mutil.gui.animation.KeyframeAnimation;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
 /**
  * Shared folding state for Tetra's native material groups and compatible
@@ -36,6 +39,8 @@ public final class HoloGroupFoldController<T> {
     private Runnable onToggle = () -> {};
     private T selected;
     private boolean expanded;
+    private Predicate<T> viewFilter;
+    private Comparator<T> viewSorter;
 
     public HoloGroupFoldController(
             GuiElement owner,
@@ -94,6 +99,24 @@ public final class HoloGroupFoldController<T> {
         }
     }
 
+    /**
+     * Applies an optional filter and ordering to the entries shown by this
+     * group. Pass {@code null} for both to restore the native presentation.
+     *
+     * @return the number of entries remaining after filtering
+     */
+    public int applyView(Predicate<T> filter, Comparator<T> sorter) {
+        viewFilter = filter;
+        viewSorter = sorter;
+        List<Integer> order = displayOrder();
+        if (filter != null && expanded
+                && order.size() <= MaterialGroupWindow.COLLAPSE_THRESHOLD) {
+            expanded = false;
+        }
+        applyLayout();
+        return order.size();
+    }
+
     public boolean isExpanded() {
         return expanded;
     }
@@ -110,17 +133,37 @@ public final class HoloGroupFoldController<T> {
         this.selected = selected != null && entries.contains(selected)
                 ? selected
                 : null;
-        if (isCollapsible() && !expanded) {
-            applyLayout();
-        }
+        applyLayout();
     }
 
     public void reapplyLayout() {
         applyLayout();
     }
 
+    private boolean foldingEnabled() {
+        return TetraInsightConfig.materialGroupFolding.get();
+    }
+
     private boolean isCollapsible() {
-        return entryCount > MaterialGroupWindow.COLLAPSE_THRESHOLD;
+        return foldingEnabled()
+                && entryCount > MaterialGroupWindow.COLLAPSE_THRESHOLD;
+    }
+
+    /**
+     * The entry indices currently addressable by this group, filtered and
+     * sorted. Positions in this list are mapped onto the native item slots.
+     */
+    private List<Integer> displayOrder() {
+        List<Integer> order = IntStream.range(0, entryCount)
+                .filter(index -> viewFilter == null
+                        || viewFilter.test(entries.get(index)))
+                .boxed()
+                .collect(java.util.stream.Collectors
+                        .toCollection(java.util.ArrayList::new));
+        if (viewSorter != null) {
+            order.sort(Comparator.comparing(entries::get, viewSorter));
+        }
+        return order;
     }
 
     private void requestToggle() {
@@ -128,32 +171,40 @@ public final class HoloGroupFoldController<T> {
     }
 
     private void applyLayout() {
-        if (!isCollapsible()) {
-            return;
-        }
+        List<Integer> order = displayOrder();
+        int displayCount = order.size();
+        boolean collapsible = foldingEnabled()
+                && displayCount > MaterialGroupWindow.COLLAPSE_THRESHOLD;
 
-        int selectedIndex = selected == null ? -1 : entries.indexOf(selected);
-        if (selectedIndex >= entryCount) {
-            selectedIndex = -1;
+        int selectedEntry = selected == null ? -1 : entries.indexOf(selected);
+        if (selectedEntry >= entryCount) {
+            selectedEntry = -1;
         }
+        int selectedPosition = selectedEntry >= 0
+                ? order.indexOf(selectedEntry)
+                : -1;
+
         MaterialGroupWindow window = MaterialGroupWindow.of(
-                entryCount, selectedIndex, expanded, compactCount);
+                displayCount,
+                selectedPosition,
+                expanded || !collapsible,
+                compactCount);
+
         for (int index = 0; index < items.size(); index++) {
-            GuiElement item = items.get(index);
-            item.setVisible(false);
-            if (index < entryCount
-                    && !window.visibleIndices().contains(index)) {
-                restoreHiddenItem(index, item);
+            items.get(index).setVisible(false);
+            if (index < entryCount && !order.contains(index)) {
+                restoreHiddenItem(index, items.get(index));
             }
         }
 
         int contentWidth = 0;
         for (int slot = 0; slot < window.visibleIndices().size(); slot++) {
-            int entryIndex = window.visibleIndices().get(slot);
-            if (entryIndex < 0 || entryIndex >= entryCount
+            int position = window.visibleIndices().get(slot);
+            if (position < 0 || position >= displayCount
                     || slot >= nativeX.length) {
                 continue;
             }
+            int entryIndex = order.get(position);
             GuiElement item = items.get(entryIndex);
             if (entryIndex != slot) {
                 stopRelocatedAnimation(entryIndex, item);
@@ -163,6 +214,18 @@ public final class HoloGroupFoldController<T> {
             item.setVisible(true);
             contentWidth = Math.max(
                     contentWidth, item.getX() + item.getWidth());
+        }
+
+        boolean controlsUsable = expandButton != null && collapseButton != null;
+        if (!collapsible || !controlsUsable) {
+            if (controlsUsable) {
+                expandButton.setVisible(false);
+                collapseButton.setVisible(false);
+            }
+            int width = Math.max(nativeWidth, contentWidth);
+            entriesContainer.setWidth(width);
+            owner.setWidth(width);
+            return;
         }
 
         int labelWidth = categoryLabel != null
@@ -175,7 +238,7 @@ public final class HoloGroupFoldController<T> {
             headerWidth = labelWidth + 3 + collapseButton.getWidth();
         } else {
             collapseButton.setVisible(false);
-            int controlSlot = Math.min(compactCount, entryCount - 1);
+            int controlSlot = Math.min(compactCount, displayCount - 1);
             expandButton.placeExpandSlot(
                     nativeX[controlSlot], nativeY[controlSlot],
                     window.hiddenCount());

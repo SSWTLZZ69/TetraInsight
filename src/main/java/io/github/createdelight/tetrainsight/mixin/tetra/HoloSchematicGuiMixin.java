@@ -2,12 +2,18 @@ package io.github.createdelight.tetrainsight.mixin.tetra;
 
 import io.github.createdelight.tetrainsight.client.HoloImprovementButtonAccess;
 import io.github.createdelight.tetrainsight.client.HoloImprovementCountAccess;
+import io.github.createdelight.tetrainsight.client.HoloImprovementDetailAccess;
 import io.github.createdelight.tetrainsight.client.HoloHoningTargetAccess;
 import io.github.createdelight.tetrainsight.client.HoloMaterialImpactButtonGui;
 import io.github.createdelight.tetrainsight.client.HoloMaterialImpactPanelGui;
 import io.github.createdelight.tetrainsight.client.HoloSchematicImprovementEntryAccess;
 import io.github.createdelight.tetrainsight.client.HoloSchematicVariantNavigationAccess;
 import io.github.createdelight.tetrainsight.client.HoloSortMaterialScalingAccess;
+import io.github.createdelight.tetrainsight.TetraInsight;
+import io.github.createdelight.tetrainsight.client.ContextualSorterFactory;
+import io.github.createdelight.tetrainsight.integration.tetra.model.MaterialTranslationEntry;
+import io.github.createdelight.tetrainsight.integration.tetra.MaterialGlyphTintResolver;
+import io.github.createdelight.tetrainsight.integration.tetra.MaterialInsightIndex;
 import io.github.createdelight.tetrainsight.integration.tetra.TetraDataProbe;
 import io.github.createdelight.tetrainsight.integration.tetra.model.TranslationProvenance;
 import net.minecraft.world.item.ItemStack;
@@ -30,6 +36,7 @@ import se.mickelus.mutil.gui.GuiElement;
 import se.mickelus.mutil.gui.impl.GuiHorizontalLayoutGroup;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 @Mixin(value = HoloSchematicGui.class, remap = false)
@@ -62,6 +69,15 @@ public abstract class HoloSchematicGuiMixin
     @Shadow
     private void onVariantSelect(OutcomePreview preview) {
     }
+
+    @Unique
+    private ItemStack tetraInsight$currentItem = ItemStack.EMPTY;
+
+    @Unique
+    private String tetraInsight$currentSlot = "";
+
+    @Unique
+    private UpgradeSchematic tetraInsight$currentSchematic;
 
     @Unique
     private HoloImprovementButton tetraInsight$improvementEntry;
@@ -112,6 +128,9 @@ public abstract class HoloSchematicGuiMixin
     @Inject(method = "update", at = @At("RETURN"), remap = false)
     private void tetraInsight$resetPersistentImprovementEntry(ItemStack item, String slot,
             UpgradeSchematic schematic, CallbackInfo ci) {
+        tetraInsight$currentItem = item == null ? ItemStack.EMPTY : item.copy();
+        tetraInsight$currentSlot = slot == null ? "" : slot;
+        tetraInsight$currentSchematic = schematic;
         tetraInsight$refreshImprovementEntry();
         TetraDataProbe.findSchematic(schematic.getKey())
                 .filter(snapshot -> snapshot.displayTranslation().provenance()
@@ -126,8 +145,16 @@ public abstract class HoloSchematicGuiMixin
     @Inject(method = "update", at = @At("HEAD"), remap = false)
     private void tetraInsight$setActualSorterTargets(ItemStack item, String slot,
             UpgradeSchematic schematic, CallbackInfo ci) {
+        String schematicKey = schematic.getKey();
+        List<MaterialTranslationEntry> scaling =
+                TetraDataProbe.findActualMaterialScaling(schematicKey);
         ((HoloSortMaterialScalingAccess) sortbutton).tetraInsight$setActualMaterialScaling(
-                TetraDataProbe.findActualMaterialScaling(schematic.getKey()));
+                scaling, TetraDataProbe.findSchematic(schematicKey).orElse(null));
+        if (scaling.isEmpty()) {
+            TetraInsight.LOGGER.info(
+                    "Sorter probe: schematic '{}' (slot '{}') produced no material-scaling entries",
+                    schematicKey, slot);
+        }
     }
 
     @Inject(method = "onVariantSelect", at = @At("RETURN"), remap = false)
@@ -184,9 +211,73 @@ public abstract class HoloSchematicGuiMixin
     }
 
     @Override
-    public void tetraInsight$openVariantImprovements(OutcomePreview preview) {
+    public void tetraInsight$openVariantImprovements(OutcomePreview preview,
+            String materialKey, ItemStack materialStack) {
         onVariantSelect(preview);
         onVariantOpen.accept(preview);
+        if (materialKey != null && !materialKey.isBlank()
+                || materialStack != null && !materialStack.isEmpty()) {
+            ((HoloImprovementDetailAccess) detail)
+                    .tetraInsight$openImprovementByMaterial(
+                            materialKey == null ? "" : materialKey,
+                            materialStack == null ? ItemStack.EMPTY : materialStack);
+        }
+    }
+
+    @Override
+    public void tetraInsight$selectVariantByMaterial(String materialKey,
+            ItemStack materialStack) {
+        if (tetraInsight$currentSchematic == null
+                || tetraInsight$currentItem.isEmpty()) {
+            return;
+        }
+        OutcomePreview match = java.util.Arrays.stream(
+                        tetraInsight$currentSchematic.getPreviews(
+                                tetraInsight$currentItem, tetraInsight$currentSlot))
+                .filter(java.util.Objects::nonNull)
+                .filter(preview -> preview.itemStack != null
+                        && !preview.itemStack.isEmpty())
+                .filter(preview -> tetraInsight$matchesMaterialContext(
+                        tetraInsight$currentSchematic, preview,
+                        materialKey, materialStack))
+                .findFirst()
+                .orElse(null);
+        if (match != null) {
+            onVariantSelect(match);
+        }
+    }
+
+    @Unique
+    private static boolean tetraInsight$matchesMaterialContext(
+            UpgradeSchematic schematic, OutcomePreview preview,
+            String materialKey, ItemStack materialStack) {
+        if (materialKey != null && !materialKey.isBlank()) {
+            return MaterialGlyphTintResolver
+                    .resolve(schematic.getKey(), preview)
+                    .map(snapshot -> snapshot.materialKey().equals(materialKey))
+                    .orElseGet(() -> preview.materials != null
+                            && java.util.Arrays.stream(preview.materials)
+                                    .filter(java.util.Objects::nonNull)
+                                    .anyMatch(material ->
+                                            tetraInsight$materialItemMatches(
+                                                    material, materialKey)));
+        }
+        if (materialStack != null && !materialStack.isEmpty()
+                && preview.materials != null) {
+            return java.util.Arrays.stream(preview.materials)
+                    .filter(java.util.Objects::nonNull)
+                    .filter(material -> !material.isEmpty())
+                    .anyMatch(material -> material.getItem()
+                            == materialStack.getItem());
+        }
+        return false;
+    }
+
+    @Unique
+    private static boolean tetraInsight$materialItemMatches(ItemStack material,
+            String materialKey) {
+        return MaterialInsightIndex.findProfiles(material).stream()
+                .anyMatch(profile -> profile.materialKey().equals(materialKey));
     }
 
     @Unique

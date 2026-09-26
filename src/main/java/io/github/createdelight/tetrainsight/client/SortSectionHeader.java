@@ -1,27 +1,31 @@
 package io.github.createdelight.tetrainsight.client;
 
-import java.util.Comparator;
-import java.util.function.Function;
-import net.minecraft.client.resources.language.I18n;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import se.mickelus.tetra.gui.stats.sorting.IStatSorter;
 import se.mickelus.tetra.gui.stats.sorting.StatSorters;
 import se.mickelus.tetra.module.Priority;
 
-/**
- * A clearly labelled UI option that delegates to Tetra's natural, unsorted
- * sorter. The wrapper is kept client-side and does not change sorting rules.
- */
-public final class ClearSorterOption implements IStatSorter {
-    public static final ClearSorterOption INSTANCE = new ClearSorterOption();
+import java.util.Comparator;
+import java.util.function.Function;
 
-    private ClearSorterOption() {
+/**
+ * A non-functional row that visually labels a generated sorter section inside
+ * the popover. It never sorts (delegates to the neutral comparator) and simply
+ * renders its localized group label like a regular option.
+ */
+public final class SortSectionHeader implements IStatSorter {
+    private final String label;
+    private final Priority priority;
+
+    public SortSectionHeader(String label, Priority priority) {
+        this.label = label;
+        this.priority = priority;
     }
 
     @Override
     public String getName() {
-        return I18n.get("tetra_insight.holo.sort.clear");
+        return label;
     }
 
     @Override
@@ -31,7 +35,7 @@ public final class ClearSorterOption implements IStatSorter {
 
     @Override
     public String getValue(Player player, ItemStack stack) {
-        return StatSorters.none.getValue(player, stack);
+        return "";
     }
 
     @Override
@@ -41,7 +45,6 @@ public final class ClearSorterOption implements IStatSorter {
 
     @Override
     public Priority getPriority() {
-        // pinned to the top of the popover regardless of generated sections
-        return Priority.HIGHEST;
+        return priority;
     }
 }

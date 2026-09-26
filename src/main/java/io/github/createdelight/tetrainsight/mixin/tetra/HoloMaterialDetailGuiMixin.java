@@ -42,7 +42,7 @@ public abstract class HoloMaterialDetailGuiMixin
         HoloMaterialDetailGui self = (HoloMaterialDetailGui) (Object) this;
         tetraInsight$dossierButton = new HoloMaterialDossierButtonGui(
                 Math.max(2, width - 58),
-                2,
+                self.getHeight() - 13,
                 () -> {
                     tetraInsight$dossierPanel.toggle();
                     tetraInsight$dossierButton.setActive(tetraInsight$dossierPanel.isVisible());

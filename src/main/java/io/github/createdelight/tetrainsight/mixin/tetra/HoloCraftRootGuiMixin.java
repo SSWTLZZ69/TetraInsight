@@ -135,9 +135,13 @@ public abstract class HoloCraftRootGuiMixin
             IModularItem item,
             ItemStack itemStack,
             String slot,
-            UpgradeSchematic schematic
+            UpgradeSchematic schematic,
+            String materialKey,
+            ItemStack materialStack
     ) {
         tetraInsight$openWithWorkingStack(item, itemStack, slot, schematic);
+        ((HoloSchematicVariantNavigationAccess) schematicView)
+                .tetraInsight$selectVariantByMaterial(materialKey, materialStack);
     }
 
     @Override
@@ -146,11 +150,14 @@ public abstract class HoloCraftRootGuiMixin
             ItemStack itemStack,
             String slot,
             UpgradeSchematic parentSchematic,
-            OutcomePreview parentPreview
+            OutcomePreview parentPreview,
+            String materialKey,
+            ItemStack materialStack
     ) {
         tetraInsight$openWithWorkingStack(item, itemStack, slot, parentSchematic);
         ((HoloSchematicVariantNavigationAccess) schematicView)
-                .tetraInsight$openVariantImprovements(parentPreview);
+                .tetraInsight$openVariantImprovements(
+                        parentPreview, materialKey, materialStack);
     }
 
     @Unique

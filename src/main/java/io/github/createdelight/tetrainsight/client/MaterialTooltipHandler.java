@@ -2,6 +2,7 @@ package io.github.createdelight.tetrainsight.client;
 
 import io.github.createdelight.tetrainsight.integration.tetra.MaterialInsightIndex;
 import io.github.createdelight.tetrainsight.integration.tetra.TetraDataProbe;
+import io.github.createdelight.tetrainsight.client.TetraInsightConfig;
 import io.github.createdelight.tetrainsight.integration.tetra.model.MaterialProfileSnapshot;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,13 @@ public final class MaterialTooltipHandler {
                         MaterialInsightText.categoryName(profile),
                         usages)
                 .withStyle(ChatFormatting.WHITE));
+        if (!TetraInsightConfig.materialTooltipDetails.get()) {
+            result.add(Component.translatable(
+                            "tetra_insight.material.tooltip.holosphere",
+                            MaterialDossierShortcut.keyName())
+                    .withStyle(ChatFormatting.GRAY));
+            return List.copyOf(result);
+        }
         result.add(MaterialInsightText.tendency(profile));
 
         if (Screen.hasShiftDown()) {

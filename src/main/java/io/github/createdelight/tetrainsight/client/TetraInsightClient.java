@@ -10,6 +10,7 @@ public final class TetraInsightClient {
     }
 
     public static void init() {
+        TetraInsightConfig.register();
         MinecraftForge.EVENT_BUS.addListener(TetraInsightClientCommands::register);
         MinecraftForge.EVENT_BUS.addListener(MaterialTooltipHandler::onTooltip);
         MinecraftForge.EVENT_BUS.addListener(MaterialDossierShortcut::onKeyPressed);

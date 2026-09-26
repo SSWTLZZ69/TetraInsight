@@ -2,6 +2,7 @@ package io.github.createdelight.tetrainsight.mixin.tetra;
 
 import io.github.createdelight.tetrainsight.client.HoloDisplaySchematicAccess;
 import io.github.createdelight.tetrainsight.client.HoloImprovementGuiExtension;
+import io.github.createdelight.tetrainsight.client.TetraInsightConfig;
 import io.github.createdelight.tetrainsight.client.HoloImprovementBackButtonGui;
 import io.github.createdelight.tetrainsight.client.HoloImprovementOverviewEntryGui;
 import io.github.createdelight.tetrainsight.client.HoloSortPageControls;
@@ -9,6 +10,8 @@ import io.github.createdelight.tetrainsight.client.ImprovementDisplayEntry;
 import io.github.createdelight.tetrainsight.client.ImprovementChainEntry;
 import io.github.createdelight.tetrainsight.client.PaginationWindow;
 import io.github.createdelight.tetrainsight.integration.tetra.MaterialGlyphTintResolver;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -47,9 +50,16 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 @Mixin(value = HoloImprovementListGui.class, remap = false)
-public abstract class HoloImprovementListGuiMixin {
+public abstract class HoloImprovementListGuiMixin
+        implements io.github.createdelight.tetrainsight.client.HoloImprovementOverviewAccess {
     @Unique
-    private static final int tetraInsight$PAGE_SIZE = 9;
+    private static final int tetraInsight$PAGE_SIZE = 15;
+
+    @Unique
+    private static final int tetraInsight$GROUP_COUNT = 5;
+
+    @Unique
+    private static final int tetraInsight$GROUP_PITCH = 13;
 
     @Unique
     private static final int tetraInsight$TOOLBAR_GAP = 6;
@@ -96,6 +106,9 @@ public abstract class HoloImprovementListGuiMixin {
     @Unique
     private final List<HoloImprovementOverviewEntryGui> tetraInsight$overviewEntries =
             new ArrayList<>();
+
+    @Unique
+    private GuiHorizontalLayoutGroup[] tetraInsight$groups;
 
     @Unique
     private ImprovementDisplayEntry tetraInsight$detailEntry;
@@ -150,11 +163,30 @@ public abstract class HoloImprovementListGuiMixin {
         tetraInsight$backButton = new HoloImprovementBackButtonGui(
                 this::tetraInsight$closeDetail);
         ((GuiElement) (Object) this).addChild(tetraInsight$backButton);
+
+        tetraInsight$groups = Arrays.copyOf(groups, tetraInsight$GROUP_COUNT);
+        for (int index = 0; index < tetraInsight$GROUP_COUNT; index++) {
+            if (tetraInsight$groups[index] == null) {
+                tetraInsight$groups[index] = new GuiHorizontalLayoutGroup(
+                        0, 0, 32, 8);
+                container.addChild(tetraInsight$groups[index]);
+            }
+            tetraInsight$groups[index].setY(index * tetraInsight$GROUP_PITCH);
+        }
     }
 
     @Inject(method = "updateSchematics", at = @At("HEAD"), cancellable = true, remap = false)
     private void tetraInsight$groupImprovementChains(ItemStack itemStack, String slot,
             UpgradeSchematic[] schematics, CallbackInfo ci) {
+        if (!TetraInsightConfig.improvementOverview.get()) {
+            tetraInsight$displayEntries = List.of();
+            tetraInsight$overviewEntries.clear();
+            tetraInsight$detailEntry = null;
+            tetraInsight$visibilityToggle.setVisible(false);
+            tetraInsight$pageControls.setVisible(false);
+            tetraInsight$backButton.setVisible(false);
+            return;
+        }
         tetraInsight$itemStack = itemStack.copy();
         tetraInsight$slot = slot;
         tetraInsight$allSchematics = Arrays.copyOf(schematics, schematics.length);
@@ -238,14 +270,16 @@ public abstract class HoloImprovementListGuiMixin {
             HoloImprovementOverviewEntryGui overview =
                     new HoloImprovementOverviewEntryGui(
                             0, 0, displayEntry, available,
-                            () -> tetraInsight$openDetail(displayEntry));
+                            tetraInsight$conditionLines(displayEntry, available),
+                            () -> tetraInsight$openDetail(displayEntry),
+                            onVariantSelect);
             overview.updateSelection(tetraInsight$selectedOutcomes);
             tetraInsight$overviewEntries.add(overview);
             targetGroup.addChild(overview);
             targetGroup.forceLayout();
         }
 
-        for (GuiHorizontalLayoutGroup group : groups) {
+        for (GuiHorizontalLayoutGroup group : tetraInsight$groups) {
             group.forceLayout();
         }
         container.markDirty();
@@ -277,7 +311,7 @@ public abstract class HoloImprovementListGuiMixin {
         for (UpgradeSchematic schematic : schematics) {
             OutcomePreview[] previews = Arrays.stream(schematic.getPreviews(
                             tetraInsight$itemStack, tetraInsight$slot))
-                    .filter(preview -> MaterialGlyphTintResolver.shouldDisplay(
+                    .filter(preview -> tetraInsight$shouldDisplayPreview(
                             schematic, preview))
                     .toArray(OutcomePreview[]::new);
             previewsBySchematic.put(schematic, previews);
@@ -356,6 +390,19 @@ public abstract class HoloImprovementListGuiMixin {
     }
 
     @Unique
+    private static boolean tetraInsight$shouldDisplayPreview(
+            UpgradeSchematic schematic, OutcomePreview preview) {
+        if (preview == null) {
+            return false;
+        }
+        if ("book_enchant".equals(schematic.getKey())
+                && TetraInsightConfig.enchantmentImprovements.get()) {
+            return true;
+        }
+        return MaterialGlyphTintResolver.shouldDisplay(schematic, preview);
+    }
+
+    @Unique
     private static boolean tetraInsight$dependsOnImprovement(
             UpgradeSchematic schematic, String improvementKey) {
         UpgradeSchematic delegate = schematic instanceof HoloDisplaySchematicAccess display
@@ -401,6 +448,63 @@ public abstract class HoloImprovementListGuiMixin {
                         improvementKey);
     }
 
+    @Override
+    @Unique
+    public void tetraInsight$openDetailForMaterial(String materialKey,
+            ItemStack materialStack) {
+        if ((materialKey == null || materialKey.isBlank())
+                && (materialStack == null || materialStack.isEmpty())) {
+            return;
+        }
+        if (tetraInsight$displayEntriesDirty) {
+            tetraInsight$rebuildDisplayEntries();
+        }
+        for (int index = 0; index < tetraInsight$displayEntries.size(); index++) {
+            ImprovementDisplayEntry entry = tetraInsight$displayEntries.get(index);
+            if (!tetraInsight$entryUsesMaterial(entry, materialKey, materialStack)) {
+                continue;
+            }
+            tetraInsight$currentPage = index / tetraInsight$PAGE_SIZE;
+            tetraInsight$openDetail(entry);
+            return;
+        }
+    }
+
+    @Unique
+    private static boolean tetraInsight$entryUsesMaterial(
+            ImprovementDisplayEntry entry, String materialKey,
+            ItemStack materialStack) {
+        if (entry.isChain()) {
+            return entry.chain().stream().anyMatch(chainEntry ->
+                    tetraInsight$previewUsesMaterial(chainEntry.schematic(),
+                            chainEntry.preview(), materialKey, materialStack));
+        }
+        return Arrays.stream(entry.previews()).anyMatch(preview ->
+                tetraInsight$previewUsesMaterial(entry.schematic(), preview,
+                        materialKey, materialStack));
+    }
+
+    @Unique
+    private static boolean tetraInsight$previewUsesMaterial(
+            UpgradeSchematic schematic, OutcomePreview preview,
+            String materialKey, ItemStack materialStack) {
+        if (materialKey != null && !materialKey.isBlank()) {
+            return MaterialGlyphTintResolver
+                    .resolve(schematic.getKey(), preview)
+                    .map(snapshot -> snapshot.materialKey().equals(materialKey))
+                    .orElse(false);
+        }
+        if (materialStack != null && !materialStack.isEmpty()
+                && preview.materials != null) {
+            return Arrays.stream(preview.materials)
+                    .filter(java.util.Objects::nonNull)
+                    .filter(material -> !material.isEmpty())
+                    .anyMatch(material -> material.getItem()
+                            == materialStack.getItem());
+        }
+        return false;
+    }
+
     @Unique
     private void tetraInsight$openDetail(ImprovementDisplayEntry entry) {
         tetraInsight$transitionSwap(1, () -> {
@@ -427,7 +531,7 @@ public abstract class HoloImprovementListGuiMixin {
         container.setY(tetraInsight$DETAIL_HEADER_HEIGHT);
 
         HoloImprovementGui improvement = tetraInsight$addImprovement(
-                groups[0], tetraInsight$detailEntry.schematic(),
+                tetraInsight$groups[0], tetraInsight$detailEntry.schematic(),
                 tetraInsight$itemStack, tetraInsight$slot);
         if (tetraInsight$detailEntry.isChain()) {
             ((HoloImprovementGuiExtension) improvement).tetraInsight$setImprovementChain(
@@ -500,7 +604,7 @@ public abstract class HoloImprovementListGuiMixin {
     private void tetraInsight$clearRows() {
         improvements.clear();
         tetraInsight$overviewEntries.clear();
-        for (GuiHorizontalLayoutGroup group : groups) {
+        for (GuiHorizontalLayoutGroup group : tetraInsight$groups) {
             group.clearChildren();
             group.setWidth(0);
         }
@@ -511,10 +615,113 @@ public abstract class HoloImprovementListGuiMixin {
         for (HoloImprovementGui improvement : improvements) {
             ((HoloImprovementGuiExtension) improvement).tetraInsight$refreshLayoutWidth();
         }
-        for (GuiHorizontalLayoutGroup group : groups) {
+        for (GuiHorizontalLayoutGroup group : tetraInsight$groups) {
             group.forceLayout();
         }
         container.markDirty();
+    }
+
+    @Unique
+    private List<Component> tetraInsight$conditionLines(
+            ImprovementDisplayEntry entry, boolean available) {
+        List<Component> lines = new ArrayList<>();
+        if (entry.isChain()) {
+            List<ItemStack> materials = new ArrayList<>();
+            for (ImprovementChainEntry chainEntry : entry.chain()) {
+                if (chainEntry.preview().materials != null) {
+                    for (ItemStack material : chainEntry.preview().materials) {
+                        if (material != null && !material.isEmpty()
+                                && materials.stream().noneMatch(existing ->
+                                        ItemStack.isSameItemSameTags(
+                                                existing, material))) {
+                            materials.add(material);
+                        }
+                    }
+                }
+            }
+            tetraInsight$appendMaterialLines(lines, materials);
+            tetraInsight$appendRequirementLines(lines,
+                    entry.chain().get(0).schematic(), available);
+        } else {
+            List<ItemStack> materials = new ArrayList<>();
+            int experienceCost = 0;
+            for (OutcomePreview preview : entry.previews()) {
+                if (preview.materials != null) {
+                    for (ItemStack material : preview.materials) {
+                        if (material != null && !material.isEmpty()
+                                && materials.stream().noneMatch(existing ->
+                                        ItemStack.isSameItemSameTags(
+                                                existing, material))) {
+                            materials.add(material);
+                        }
+                    }
+                }
+                try {
+                    experienceCost = Math.max(experienceCost,
+                            entry.schematic().getExperienceCost(
+                                    tetraInsight$itemStack,
+                                    preview.materials != null
+                                            ? preview.materials
+                                            : new ItemStack[0],
+                                    tetraInsight$slot));
+                } catch (RuntimeException ignored) {
+                }
+            }
+            tetraInsight$appendMaterialLines(lines, materials);
+            if (experienceCost > 0) {
+                lines.add(Component.translatable(
+                                "tetra_insight.holo.improvement.experience_cost_max",
+                                experienceCost)
+                        .withStyle(ChatFormatting.GRAY));
+            }
+            tetraInsight$appendRequirementLines(lines,
+                    entry.schematic(), available);
+        }
+        return List.copyOf(lines);
+    }
+
+    @Unique
+    private static void tetraInsight$appendMaterialLines(
+            List<Component> lines, List<ItemStack> materials) {
+        if (materials.isEmpty()) {
+            return;
+        }
+        lines.add(Component.translatable(
+                        "tetra_insight.holo.improvement.consumables")
+                .withStyle(ChatFormatting.GRAY));
+        materials.stream().limit(4).forEach(material -> lines.add(
+                Component.literal("  ")
+                        .append(material.getHoverName().copy()
+                                .withStyle(ChatFormatting.GRAY))
+                        .append(material.getCount() > 1
+                                ? Component.literal(" ×" + material.getCount())
+                                        .withStyle(ChatFormatting.DARK_GRAY)
+                                : Component.empty())));
+        if (materials.size() > 4) {
+            lines.add(Component.translatable(
+                            "tetra_insight.holo.improvement.more_consumables",
+                            materials.size() - 4)
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+    }
+
+    @Unique
+    private static void tetraInsight$appendRequirementLines(
+            List<Component> lines, UpgradeSchematic schematic,
+            boolean available) {
+        if (available) {
+            return;
+        }
+        List<Component> requirements = schematic.getRequirementDescription();
+        if (requirements != null && !requirements.isEmpty()) {
+            lines.add(Component.translatable(
+                            "tetra_insight.holo.improvement.requires")
+                    .withStyle(ChatFormatting.GRAY));
+            requirements.forEach(requirement ->
+                    lines.add(Component.literal("  ")
+                            .append(requirement.copy()
+                                    .withStyle(ChatFormatting.DARK_GRAY))));
+        }
     }
 
     @Unique
@@ -537,9 +744,9 @@ public abstract class HoloImprovementListGuiMixin {
 
     @Unique
     private GuiHorizontalLayoutGroup tetraInsight$shortestRow() {
-        return Arrays.stream(groups)
+        return Arrays.stream(tetraInsight$groups)
                 .min(Comparator.comparingInt(GuiHorizontalLayoutGroup::getWidth))
-                .orElse(groups[0]);
+                .orElse(tetraInsight$groups[0]);
     }
 
     @Unique

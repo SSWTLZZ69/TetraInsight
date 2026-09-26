@@ -59,7 +59,10 @@ public abstract class HoloImprovementListGuiMixin
     private static final int tetraInsight$GROUP_COUNT = 5;
 
     @Unique
-    private static final int tetraInsight$GROUP_PITCH = 13;
+    private static final int tetraInsight$GROUP_PITCH = 17;
+
+    @Unique
+    private static final int tetraInsight$OVERVIEW_TOP = 6;
 
     @Unique
     private static final int tetraInsight$TOOLBAR_GAP = 6;
@@ -245,7 +248,7 @@ public abstract class HoloImprovementListGuiMixin
             return;
         }
 
-        container.setY(0);
+        container.setY(tetraInsight$OVERVIEW_TOP);
 
         if (tetraInsight$displayEntriesDirty) {
             tetraInsight$rebuildDisplayEntries();
